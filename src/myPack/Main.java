@@ -16,7 +16,8 @@ import javafx.stage.Stage;
 
 public class Main extends Application {
 	
-	static ArrayList<Room> rooms = new ArrayList<Room>();
+	//static ArrayList<Room> rooms = new ArrayList<Room>();
+	static HashMap<Integer, Room> rooms = new HashMap<Integer, Room>();
 	static int[][] tiles = new int[50][50];
 	ArrayList<Point> changedTiles = new ArrayList<Point>();
 	static HashMap<Integer, Color> pallette = new HashMap<Integer, Color>();
@@ -150,6 +151,7 @@ public class Main extends Application {
 		stage.show();
 	}
 	
+	
 	//the main pathfinding method that handles all the others
 	public static void findPath(Room comingFrom, Room goingTo) {
 		ArrayList <Room> fromAsAL = new ArrayList<Room>();
@@ -161,6 +163,7 @@ public class Main extends Application {
 //			}
 //		}
 	}
+	
 	
 	//the recursive function that generates the room-paths
 	public static ArrayList<ArrayList<Room>> seekRoom(ArrayList<Room> sofar, Room target) {
@@ -189,6 +192,7 @@ public class Main extends Application {
 		}
 		return myReturn;
 	}
+	
 
 	//check if a room detection sweep needs to happen, and find seed coordinates for one
 	public ArrayList<Point> RDpreCheck(int x, int y) {
@@ -226,8 +230,10 @@ public class Main extends Application {
 		-1	1
 		-1	0	*/
 	}
+	
 	public void roomDetection (ArrayList<Point> origins) {
 		//if room detection isn't actually necessary, forget it
+		//consider rewriting this so you can use roomDetection in more situations?
 		if(origins.size() <= 1) return;
 		//System.out.println("Detection triggered!");
 		
@@ -245,30 +251,72 @@ public class Main extends Application {
 		for (int i = 0; i < origins.size(); i++) {
 			//stores distinct tiles found on this pulse only
 			ArrayList<Integer> tfNow = rdPulse(origins.get(i), tilesfound);
+			
+			//stores doors that might be modified by this pulse's results
+			ArrayList<Door> problemDoors = new ArrayList<Door>();
+			
+			//check for doors adjacent to the newly found area
+			//first off, iterate through tilesfound
+			for(int n = 0; n < tilesfound.length; n++) {
+				for (int m = 0; m < tilesfound[0].length; m++) {
+					//if this is a newly "found" tile...
+					if(tilesfound[n][m] == 1) {
+						Point[] offsets = {new Point(0, 1), new Point(1, 0), new Point(0, -1), new Point(-1, 0)};
+						for (int k = 0; k < offsets.length; k++) {
+							int checkx = n + offsets[k].x;
+							int checky = m + offsets[k].y;
+							//avoid checking out of bounds - the weirdness is to cover the NEXT check, too
+							if(checkx + offsets[k].x >= 0 && checkx + offsets[k].x < tiles.length && 
+									checky + offsets[k].y >= 0 && checky + offsets[k].y < tiles[0].length) {
+								if(tiles[checkx][checky] == 2) {
+	//Bear with me here.
+	//doorsToCheck is the list of doors owned by the room at the origin that lead to the room on the far side of the found door
+									ArrayList<Door> doorsToCheck = 
+											rooms.get(tiles[n][m]).doors.get(rooms.get(
+													tiles[checkx + offsets[k].x][checky + offsets[k].y]));
+									//finally grab the door in this room at that location
+									for(Door d: doorsToCheck) {
+										if(d.x == checkx && d.y == checky) {
+											problemDoors.add(d);
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+			
+			//decide what our result type is for this pulse
+			
 			//if you only found one type of tile
 			if(tfNow.size() == 1) {
 				//if you only found open space
 				if(tfNow.contains(0)) {
-					int roomID = rand.nextInt();
-					pallette.put(roomID, randomColor());
-					replaceTiles(tilesfound, 1, roomID);
+					//create a new room
+					Room newRoom = new Room();
+					replaceTiles(tilesfound, 1, newRoom.id);
 				}
 				//if you only found one room
 				else if(!tfNow.contains(0)) {
-					//TODO room splitting
 					//if this room has been found already
 					if(typesfound.contains(tfNow.get(0))) {
-						int roomID = rand.nextInt();
-						pallette.put(roomID, randomColor());
-						replaceTiles(tilesfound, 1, roomID);
+						//TODO problem doors will need to migrate to the new room
+						
+						//create a new room
+						Room newRoom = new Room();
+						replaceTiles(tilesfound, 1, newRoom.id);
 					}
+					//if this room hasn't been found already
 					else {
+						//just use it
 						replaceTiles(tilesfound, 1, tfNow.get(0));
 					}
 				}
 			}
+			//unsure if this scenario is possible. Putting a debug line here for now. 
 			else if (tfNow.size() == 0) {
-				continue;
+				System.out.println("Pulse found no tile types?");
 			}
 			//if we found more than one type, ie because a wall was removed
 			else {
@@ -281,6 +329,9 @@ public class Main extends Application {
 				//if we found more than one room (potentially plus empty space)
 				else {
 					//TODO room merging
+					//problem doors will need to check if they're between the rooms being merged
+					//if they are, cease to exist
+					//if they aren't, migrate to the surviving room (if necessary)
 					if(tfNow.indexOf(0) == 0) replaceTiles(tilesfound, 1, tfNow.get(1));
 					else replaceTiles(tilesfound, 1, tfNow.get(0));
 				}
@@ -295,6 +346,7 @@ public class Main extends Application {
 			}
 		}
 	}
+	
 	
 	//recursive method used in room detection
 	//return is a list of all the distinct tile contents found (excluding walls)
@@ -325,12 +377,14 @@ public class Main extends Application {
 		return myReturn;
 	}
 	
+	
 	public static Color randomColor() {
 		double r = rand.nextDouble();
 		double g = rand.nextDouble();
 		double b = rand.nextDouble();
 		return Color.color(r, g, b);
 	}
+	
 
 	public void replaceTiles(int[][] grid, int find, int replace) {
 		//boolean notechanges = grid == tiles;
@@ -343,6 +397,7 @@ public class Main extends Application {
 			}
 		}
 	}
+	
 
 	public ArrayList<Integer> sampleAdjacents(int[][] grid, int x, int y) {
 		ArrayList<Integer> found = new ArrayList<Integer>();
@@ -360,4 +415,5 @@ public class Main extends Application {
 		}
 		return found;
 	}
+	
 }
