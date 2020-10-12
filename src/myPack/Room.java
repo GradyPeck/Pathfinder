@@ -12,6 +12,15 @@ public class Room {
 	public int id;
 	public Color chroma;
 	
+	public ArrayList<Door> pathThrough (Door comingFrom, Room goingTo) {
+		if(doors.get(goingTo) == null || doors.get(goingTo).size() < 1) {
+			System.out.println("ERROR - invalid path request");
+		}
+		return doors.get(goingTo);
+	}
+	
+	//Door Handling Methods
+	
 	//creates a new door from this room to a target room at an arbitrary location
 	//currently unused
 	public void addDoor (Room destRoom, int x, int y) {

@@ -22,6 +22,8 @@ public class Main extends Application {
 	static ArrayList<Point> changedTiles = new ArrayList<Point>();
 	static HashMap<Integer, Color> pallette = new HashMap<Integer, Color>();
 	static Random rand = new Random();
+	Room from = null;
+	Room to = null;
 
 	public static void main(String[] args) {
 		pallette.put(0, Color.WHITE);
@@ -147,8 +149,8 @@ public class Main extends Application {
 		
 		scene.setOnMouseClicked(new EventHandler<MouseEvent>() {
         	public void handle(MouseEvent e) {
+        		Point poked = new Point(Math.min((int) (e.getX()/10), 49), Math.min((int) (e.getY()/10), 49));
         		if(e.isShiftDown()) {
-	        		Point poked = new Point(Math.min((int) (e.getX()/10), 49), Math.min((int) (e.getY()/10), 49));
 	        		if(tiles[poked.x][poked.y] == 1) {
 	        			//TODO make these all bounds-safe (please write a bounds-checking method)
 	        			int above = tiles[poked.x][poked.y + 1];
@@ -164,6 +166,34 @@ public class Main extends Application {
 	        			}
 	        		}
         		}
+        		else if(e.isAltDown()) {
+        			int idfound = tiles[poked.x][poked.y];
+        			if(idfound > 99) {
+        				Room roomfound = rooms.get(tiles[poked.x][poked.y]);
+        				if(from == null) {
+        					from = roomfound;
+        					System.out.println("From set");
+        				}
+        				else if(to == null) {
+        					if(roomfound != from) {
+        						to = roomfound;
+            					System.out.println("To set");
+            					ArrayList<ArrayList<Door>> doorpaths = findPath(from, to);
+            					for (ArrayList<Door> doorpath: doorpaths) {
+            						for (int i = 0; i < doorpath.size() - 1; i ++) {
+            							gc.strokeLine(doorpath.get(i).x * 10 + 5, doorpath.get(i).y * 10 + 5, 
+            									doorpath.get(i + 1).x * 10 + 5, doorpath.get(i + 1).y * 10 + 5);
+            						}
+            					}
+        					}
+    					}
+    					else {
+    						from = null;
+    						to = null;
+        					System.out.println("Reset");
+    					}
+        			}
+        		}
         	}
         });
 
@@ -173,17 +203,45 @@ public class Main extends Application {
 		stage.show();
 	}
 	
-	
 	//the main pathfinding method that handles all the others
-	public static void findPath(Room comingFrom, Room goingTo) {
+	public static ArrayList<ArrayList<Door>> findPath(Room comingFrom, Room goingTo) {
 		ArrayList <Room> fromAsAL = new ArrayList<Room>();
 		fromAsAL.add(comingFrom);
 		ArrayList<ArrayList<Room>> protopaths = seekRoom(fromAsAL, goingTo);
-//		for(ArrayList<Room> listy : protopaths) {
-//			for (Room r : listy) {
-//				System.out.println(r.name);
-//			}
-//		}
+		for(ArrayList<Room> listy : protopaths) {
+			for (Room r : listy) {
+				System.out.println(r.id);
+			}
+		}
+		ArrayList<ArrayList<Door>> Adoorpaths = new ArrayList<ArrayList<Door>>();
+		for(ArrayList<Room> listy : protopaths) {
+			ArrayList<ArrayList<Door>> doorpaths = new ArrayList<ArrayList<Door>>();
+			for (Door d: listy.get(0).doors.get(listy.get(1))) {
+				ArrayList<Door> justd = new ArrayList<Door>();
+				justd.add(d);
+				doorpaths.add(justd);
+			}
+			ArrayList<ArrayList<Door>> doorset = new ArrayList<ArrayList<Door>>();
+			//set up the door lists in doorset
+			for (int i = 1; i < listy.size() - 1; i++) {
+				doorset.add(listy.get(i).doors.get(listy.get(i + 1)));
+			}
+			
+			for (ArrayList<Door> doorlist: doorset) {
+				ArrayList<ArrayList<Door>> Ndoorpaths = new ArrayList<ArrayList<Door>>();
+				for (ArrayList<Door> doorpath: doorpaths) {
+					for (Door d: doorlist) {
+						ArrayList<Door> nextpath = new ArrayList<Door>();
+						nextpath.addAll(doorpath);
+						nextpath.add(d);
+						Ndoorpaths.add(nextpath);
+					}
+				}
+				doorpaths = Ndoorpaths;
+			}
+			Adoorpaths.addAll(doorpaths);
+		}
+		return Adoorpaths;
 	}
 	
 	//the recursive function that generates the room-paths
