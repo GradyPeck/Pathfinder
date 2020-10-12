@@ -19,7 +19,7 @@ public class Main extends Application {
 	//static ArrayList<Room> rooms = new ArrayList<Room>();
 	static HashMap<Integer, Room> rooms = new HashMap<Integer, Room>();
 	static int[][] tiles = new int[50][50];
-	ArrayList<Point> changedTiles = new ArrayList<Point>();
+	static ArrayList<Point> changedTiles = new ArrayList<Point>();
 	static HashMap<Integer, Color> pallette = new HashMap<Integer, Color>();
 	static Random rand = new Random();
 
@@ -98,7 +98,9 @@ public class Main extends Application {
         	public void handle(MouseEvent e) {
         		Point poked = new Point(Math.min((int) (e.getX()/10), 49), Math.min((int) (e.getY()/10), 49));
         		if(e.isSecondaryButtonDown()) {
-        			if(tiles[poked.x][poked.y] == 1) {
+        			//TODO make a better fix for door adjacency than this
+        			//if it's a wall and there isn't a door adjacent...
+        			if(tiles[poked.x][poked.y] == 1 && sampleAdjacents(tiles, poked.x, poked.y).contains(2) == false) {
         				ArrayList<Integer> neighbors = sampleAdjacents(tiles, poked.x, poked.y);
         				//if there's exactly one type adjacent...
         				if(neighbors.size() == 1) {
@@ -127,6 +129,16 @@ public class Main extends Application {
 		        		tiles[poked.x][poked.y] = 1;
 		        		changedTiles.add(poked);
 		        		
+		        		//TODO remove blocked doors
+//		        		Point[] offsets = {new Point(0, 1), new Point(1, 0), new Point(0, -1), new Point(-1, 0)};
+//						for (int k = 0; k < offsets.length; k++) {
+//							int checkx = poked.x + offsets[k].x;
+//							int checky = poked.y + offsets[k].y;
+//							if(tiles[checkx][checky] == 2) {
+//								//delete that door
+//							}
+//						}
+		        		
 		        		roomDetection(RDpreCheck(poked.x, poked.y));
 	        		}
         		}
@@ -138,8 +150,18 @@ public class Main extends Application {
         		if(e.isShiftDown()) {
 	        		Point poked = new Point(Math.min((int) (e.getX()/10), 49), Math.min((int) (e.getY()/10), 49));
 	        		if(tiles[poked.x][poked.y] == 1) {
-	        			tiles[poked.x][poked.y] = 2;
-		        		changedTiles.add(poked);
+	        			//TODO make these all bounds-safe (please write a bounds-checking method)
+	        			int above = tiles[poked.x][poked.y + 1];
+	        			int below = tiles[poked.x][poked.y - 1];
+	        			int left = tiles[poked.x - 1][poked.y];
+	        			int right = tiles[poked.x + 1][poked.y];
+	        			
+	        			if(above == 1 && below == 1 && left > 99 && right > 99 && left != right) {
+	        				rooms.get(left).createDoor(rooms.get(right), poked.x, poked.y);
+	        			}
+	        			else if(left == 1 && right == 1 && above > 99 && below > 99 && above != below) {
+	        				rooms.get(above).createDoor(rooms.get(below), poked.x, poked.y);
+	        			}
 	        		}
         		}
         	}
@@ -163,7 +185,6 @@ public class Main extends Application {
 //			}
 //		}
 	}
-	
 	
 	//the recursive function that generates the room-paths
 	public static ArrayList<ArrayList<Room>> seekRoom(ArrayList<Room> sofar, Room target) {
@@ -193,7 +214,6 @@ public class Main extends Application {
 		return myReturn;
 	}
 	
-
 	//check if a room detection sweep needs to happen, and find seed coordinates for one
 	public ArrayList<Point> RDpreCheck(int x, int y) {
 		final Point[] offsets = {
@@ -275,9 +295,9 @@ public class Main extends Application {
 											rooms.get(tiles[n][m]).doors.get(rooms.get(
 													tiles[checkx + offsets[k].x][checky + offsets[k].y]));
 									//finally grab the door in this room at that location
-									for(Door d: doorsToCheck) {
-										if(d.x == checkx && d.y == checky) {
-											problemDoors.add(d);
+									if(doorsToCheck != null) {
+										for(Door d: doorsToCheck) {
+											if(d.x == checkx && d.y == checky) problemDoors.add(d);
 										}
 									}
 								}
@@ -301,11 +321,15 @@ public class Main extends Application {
 				else if(!tfNow.contains(0)) {
 					//if this room has been found already
 					if(typesfound.contains(tfNow.get(0))) {
-						//TODO problem doors will need to migrate to the new room
+						//room splitting
 						
 						//create a new room
 						Room newRoom = new Room();
 						replaceTiles(tilesfound, 1, newRoom.id);
+						//transfer all relevant doors
+						for(Door d: problemDoors) {
+							rooms.get(tfNow.get(0)).transferDoor(d, newRoom);
+						}
 					}
 					//if this room hasn't been found already
 					else {
@@ -314,9 +338,10 @@ public class Main extends Application {
 					}
 				}
 			}
-			//unsure if this scenario is possible. Putting a debug line here for now. 
+			//This happens when merging rooms - the second pulse is surrounded by found tiles and fails instantly
 			else if (tfNow.size() == 0) {
-				System.out.println("Pulse found no tile types?");
+				//System.out.println("Pulse found no tile types");
+				continue;
 			}
 			//if we found more than one type, ie because a wall was removed
 			else {
@@ -328,17 +353,22 @@ public class Main extends Application {
 				}
 				//if we found more than one room (potentially plus empty space)
 				else {
-					//TODO room merging
-					//problem doors will need to check if they're between the rooms being merged
-					//if they are, cease to exist
-					//if they aren't, migrate to the surviving room (if necessary)
-					if(tfNow.indexOf(0) == 0) replaceTiles(tilesfound, 1, tfNow.get(1));
-					else replaceTiles(tilesfound, 1, tfNow.get(0));
+					//migrate problem doors to the surviving room
+					//now-internal doors are automatically deleted by Room.transferDoor()
+					int chosenRoom;
+					if(tfNow.indexOf(0) == 0) chosenRoom = tfNow.get(1);
+					else chosenRoom = tfNow.get(0);
+					replaceTiles(tilesfound, 1, chosenRoom);
+					for(int tiletype: tfNow) {
+						if(tiletype != 0 && tiletype != chosenRoom) {
+							rooms.get(tiletype).transferAllDoors(rooms.get(chosenRoom));
+						}
+					}
 				}
 			}
 			typesfound.addAll(tfNow);
 		}
-		//write tilesfound into tiles. This can definitely be refactored. 
+		//write tilesfound into tiles. This can probably be refactored. 
 		for(int i = 0; i < tiles.length; i++) {
 			for (int z = 0; z < tiles[0].length; z++) {
 				if(tilesfound[i][z] != -1) tiles[i][z] = tilesfound[i][z];
@@ -346,8 +376,7 @@ public class Main extends Application {
 			}
 		}
 	}
-	
-	
+		
 	//recursive method used in room detection
 	//return is a list of all the distinct tile contents found (excluding walls)
 	public ArrayList<Integer> rdPulse (Point origin, int[][] tilesfound) {
@@ -361,7 +390,7 @@ public class Main extends Application {
 					int checky = origin.y + z;
 					//exclude checking tiles that are out of bounds
 					if (checkx >= 0 && checkx < tiles.length && checky >= 0 && checky < tiles[0].length) {
-						//if this tile has not been found and is not a wall
+						//if this tile has not been found and is not a wall or a door
 						if(tilesfound[checkx][checky] == -1 && tiles[checkx][checky] != 1 && tiles[checkx][checky] != 2) {
 							Point pointy = new Point(checkx, checky);
 							if(myReturn.contains(tiles[checkx][checky]) == false) myReturn.add(tiles[checkx][checky]);
