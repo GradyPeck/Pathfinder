@@ -95,22 +95,15 @@ public class Room {
 			for (Door dor: doors.get(dest)) {
 				if (dor.equals(d)) {
 					ArrayList<Door> current;
-					if(doors.containsKey(destRoom)) {
-						current = doors.get(destRoom);
-						current.add(d);
-						doors.put(destRoom, current);
-					}
-					else { 
-						current = new ArrayList<Door>();
-						current.add(d);
-						outerList = current;
-					}
+					current = new ArrayList<Door>();
+					current.add(d);
+					outerList = current;
 				}
 				else newList.add(dor);
 			}
 			if(newList.containsAll(doors.get(dest)) == false) doors.put(dest, newList);
 		}
-		//this is here to avoid a ConcurrentModificationException when adding a new destination room
+		//this is here to avoid a ConcurrentModificationException
 		if(outerList.size() != 0) doors.put(destRoom, outerList);
 	}
 	
