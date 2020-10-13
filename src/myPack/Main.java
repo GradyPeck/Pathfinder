@@ -16,7 +16,6 @@ import javafx.stage.Stage;
 
 public class Main extends Application {
 	
-	//static ArrayList<Room> rooms = new ArrayList<Room>();
 	static HashMap<Integer, Room> rooms = new HashMap<Integer, Room>();
 	static int[][] tiles = new int[50][50];
 	static ArrayList<Point> changedTiles = new ArrayList<Point>();
@@ -71,9 +70,8 @@ public class Main extends Application {
         	public void handle(MouseEvent e) {
         		Point poked = new Point(Math.min((int) (e.getX()/10), 49), Math.min((int) (e.getY()/10), 49));
         		if(e.isSecondaryButtonDown()) {
-        			//TODO make a better fix for door adjacency than this
-        			//if it's a wall and there isn't a door adjacent...
-        			if(tiles[poked.x][poked.y] == 1 && sampleAdjacents(tiles, poked.x, poked.y).contains(2) == false) {
+        			//if it's a wall...
+        			if(tiles[poked.x][poked.y] == 1) {
         				ArrayList<Integer> neighbors = sampleAdjacents(tiles, poked.x, poked.y);
         				//if there's exactly one type adjacent...
         				if(neighbors.size() == 1) {
@@ -91,26 +89,29 @@ public class Main extends Application {
         					else tiles[poked.x][poked.y] = neighbors.get(0);
         				}
         				else {
-        					tiles[poked.x][poked.y] = 0;
-        					roomDetection(RDpreCheck(poked.x, poked.y));
+        					ArrayList<Point> checks = RDpreCheck(poked.x, poked.y);
+        					if (checks.size() == 1) {
+            					tiles[poked.x][poked.y] = tiles[checks.get(0).x][checks.get(0).y];
+        					}
+        					else {
+	        					tiles[poked.x][poked.y] = 0;
+	        					roomDetection(checks);
+        					}
         				}
         				changedTiles.add(poked);
         			}
         		}
         		else if(e.isPrimaryButtonDown()) {
+        			
 	        		if(tiles[poked.x][poked.y] != 1) {
+	        			if(sampleAdjacents(tiles, poked.x, poked.y).contains(2)) {
+	        				HashMap<Door, Room> doorsToRemove = findAdjDoors(tiles, poked.x, poked.y);
+	        				for(Door d: doorsToRemove.keySet()) {
+	        					doorsToRemove.get(d).deleteDoor(d);
+	        				}
+		        		}
 		        		tiles[poked.x][poked.y] = 1;
 		        		changedTiles.add(poked);
-		        		
-		        		//TODO remove blocked doors
-//		        		Point[] offsets = {new Point(0, 1), new Point(1, 0), new Point(0, -1), new Point(-1, 0)};
-//						for (int k = 0; k < offsets.length; k++) {
-//							int checkx = poked.x + offsets[k].x;
-//							int checky = poked.y + offsets[k].y;
-//							if(tiles[checkx][checky] == 2) {
-//								//delete that door
-//							}
-//						}
 		        		
 		        		roomDetection(RDpreCheck(poked.x, poked.y));
 	        		}
@@ -186,7 +187,9 @@ public class Main extends Application {
 		ArrayList <Room> fromAsAL = new ArrayList<Room>();
 		fromAsAL.add(comingFrom);
 		ArrayList<ArrayList<Room>> protopaths = seekRoom(fromAsAL, goingTo);
+//		Uncomment this to print the room-paths to the console
 //		for(ArrayList<Room> listy : protopaths) {
+//			System.out.println("Path Start");
 //			for (Room r : listy) {
 //				System.out.println(r.id);
 //			}
@@ -222,6 +225,7 @@ public class Main extends Application {
 		return Adoorpaths;
 	}
 	
+	
 	//the recursive function that generates the room-paths
 	public static ArrayList<ArrayList<Room>> seekRoom(ArrayList<Room> sofar, Room target) {
 		ArrayList<ArrayList<Room>> myReturn = new ArrayList<ArrayList<Room>>();
@@ -250,6 +254,7 @@ public class Main extends Application {
 		return myReturn;
 	}
 	
+	
 	//check if a room detection sweep needs to happen, and find seed coordinates for one
 	public ArrayList<Point> RDpreCheck(int x, int y) {
 		final Point[] offsets = {
@@ -272,7 +277,7 @@ public class Main extends Application {
 			//avoid checking out of bounds. Pretend all OOB tiles are walls. 
 			if(inBounds(checkx, checky, tiles)) nowfound = tiles[checkx][checky];
 			else nowfound = 1;
-			if (lastfound == 1 && nowfound != 1) spaces.add(new Point(checkx, checky));
+			if ((lastfound == 1 || lastfound == 2) && (nowfound != 1 && nowfound != 2)) spaces.add(new Point(checkx, checky));
 			lastfound = nowfound;
 		}
 		return spaces;
@@ -286,6 +291,7 @@ public class Main extends Application {
 		-1	1
 		-1	0	*/
 	}
+	
 	
 	public void roomDetection (ArrayList<Point> origins) {
 		//if room detection isn't actually necessary, forget it
@@ -324,15 +330,17 @@ public class Main extends Application {
 							//avoid checking out of bounds - the weirdness is to cover the NEXT check, too
 							if(inBounds(checkx + offsets[k].x, checky + offsets[k].y, tiles)) {
 								if(tiles[checkx][checky] == 2) {
+									if(rooms.get(tiles[n][m]) != null) {
 	//Bear with me here.
 	//doorsToCheck is the list of doors owned by the room at the origin that lead to the room on the far side of the found door
-									ArrayList<Door> doorsToCheck = 
-											rooms.get(tiles[n][m]).doors.get(rooms.get(
-													tiles[checkx + offsets[k].x][checky + offsets[k].y]));
-									//finally grab the door in this room at that location
-									if(doorsToCheck != null) {
-										for(Door d: doorsToCheck) {
-											if(d.x == checkx && d.y == checky) problemDoors.add(d);
+										ArrayList<Door> doorsToCheck = 
+												rooms.get(tiles[n][m]).doors.get(rooms.get(
+														tiles[checkx + offsets[k].x][checky + offsets[k].y]));
+										//finally grab the door in this room at that location
+										if(doorsToCheck != null) {
+											for(Door d: doorsToCheck) {
+												if(d.x == checkx && d.y == checky) problemDoors.add(d);
+											}
 										}
 									}
 								}
@@ -411,6 +419,7 @@ public class Main extends Application {
 			}
 		}
 	}
+	
 		
 	//recursive method used in room detection
 	//return is a list of all the distinct tile contents found (excluding walls)
@@ -442,6 +451,7 @@ public class Main extends Application {
 	}
 	
 	
+	
 	public static Color randomColor() {
 		double r = rand.nextDouble();
 		double g = rand.nextDouble();
@@ -449,18 +459,18 @@ public class Main extends Application {
 		return Color.color(r, g, b);
 	}
 	
+	
 
 	public void replaceTiles(int[][] grid, int find, int replace) {
-		//boolean notechanges = grid == tiles;
 		for(int i = 0; i < grid.length; i++) {
 			for (int z = 0; z < grid[0].length; z++) {
 				if(grid[i][z] == find) {
 					grid[i][z] = replace;
-					//if(notechanges) changedTiles.add(new Point(i, z));
 				}
 			}
 		}
 	}
+	
 	
 
 	public ArrayList<Integer> sampleAdjacents(int[][] grid, int x, int y) {
@@ -476,6 +486,28 @@ public class Main extends Application {
 			}
 		}
 		return found;
+	}
+	
+	public HashMap<Door, Room> findAdjDoors(int[][] grid, int x, int y) {
+		HashMap<Door, Room> myReturn = new HashMap<Door, Room>();
+		Point[] offsets = {new Point(0, 1), new Point(1, 0), new Point(0, -1), new Point(-1, 0)};
+		for (int i = 0; i < offsets.length; i++) {
+			int checkx = x + offsets[i].x;
+			int checky = y + offsets[i].y;
+			if (inBounds(checkx, checky, grid)) {
+				if (grid[checkx][checky] == 2) {
+					for (int index: rooms.keySet()) {
+						Door d = rooms.get(index).getDoorByLocation(checkx, checky);
+						if (d != null) {
+							myReturn.put(d, rooms.get(index));
+							break;
+						}
+					}
+				}
+			}
+		}
+		
+		return myReturn;
 	}
 	
 	public static boolean inBounds(int x, int y, int[][] grid) {

@@ -12,11 +12,21 @@ public class Room {
 	public int id;
 	public Color chroma;
 	
+	//UNUSED
 	public ArrayList<Door> pathThrough (Door comingFrom, Room goingTo) {
 		if(doors.get(goingTo) == null || doors.get(goingTo).size() < 1) {
 			System.out.println("ERROR - invalid path request");
 		}
 		return doors.get(goingTo);
+	}
+	
+	public Door getDoorByLocation(int x, int y) {
+		for (Room r: doors.keySet()) {
+			for (Door d: doors.get(r)) {
+				if (d.x == x && d.y == y) return d;
+			}
+		}
+		return null;
 	}
 	
 	//Door Handling Methods
@@ -135,6 +145,7 @@ public class Room {
 		}
 	}
 	
+	//Constructor Stuff
 	//returns the next possible roomID and advances to the next one
 	public static int nextID () {
 		lastID++;
