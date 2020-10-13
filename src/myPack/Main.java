@@ -29,35 +29,6 @@ public class Main extends Application {
 		pallette.put(0, Color.WHITE);
 		pallette.put(1, Color.BLACK);
 		pallette.put(2, Color.CYAN);
-		//pallette.put(3, Color.VIOLET);
-		
-		/*
-		Room roomA = new Room("A");
-		Room roomB = new Room("B");
-		Room roomC = new Room("C");
-		Room roomD = new Room("D");
-		
-		roomA.addDoor(roomB);
-		roomB.addDoor(roomC);
-		roomB.addDoor(roomD);
-		roomC.addDoor(roomD);
-		
-		rooms.add(roomA);
-		rooms.add(roomB);
-		rooms.add(roomC);
-		rooms.add(roomD);
-		
-		System.out.println("Rooms:");
-		for (Room r: rooms) {
-			System.out.print(r.name + ":");
-			for (Room roomp: r.doors.keySet()) {
-				System.out.print(roomp.name);
-			}
-			System.out.print("\n");
-		}
-		System.out.println("Paths:");
-		findPath(roomA, roomD);
-		*/
 		
 		launch();
 	}
@@ -152,11 +123,18 @@ public class Main extends Application {
         		Point poked = new Point(Math.min((int) (e.getX()/10), 49), Math.min((int) (e.getY()/10), 49));
         		if(e.isShiftDown()) {
 	        		if(tiles[poked.x][poked.y] == 1) {
-	        			//TODO make these all bounds-safe (please write a bounds-checking method)
-	        			int above = tiles[poked.x][poked.y + 1];
-	        			int below = tiles[poked.x][poked.y - 1];
-	        			int left = tiles[poked.x - 1][poked.y];
-	        			int right = tiles[poked.x + 1][poked.y];
+	        			int above;
+	        			if(inBounds(poked.x, poked.y + 1, tiles)) above = tiles[poked.x][poked.y + 1];
+	        			else above = 1;
+	        			int below;
+	        			if(inBounds(poked.x, poked.y - 1, tiles)) below = tiles[poked.x][poked.y - 1];
+	        			else below = 1;
+	        			int left;
+	        			if(inBounds(poked.x - 1, poked.y, tiles)) left = tiles[poked.x - 1][poked.y];
+	        			else left = 1;
+	        			int right;
+	        			if(inBounds(poked.x + 1, poked.y, tiles)) right = tiles[poked.x + 1][poked.y];
+	        			else right = 1;
 	        			
 	        			if(above == 1 && below == 1 && left > 99 && right > 99 && left != right) {
 	        				rooms.get(left).createDoor(rooms.get(right), poked.x, poked.y);
@@ -208,11 +186,11 @@ public class Main extends Application {
 		ArrayList <Room> fromAsAL = new ArrayList<Room>();
 		fromAsAL.add(comingFrom);
 		ArrayList<ArrayList<Room>> protopaths = seekRoom(fromAsAL, goingTo);
-		for(ArrayList<Room> listy : protopaths) {
-			for (Room r : listy) {
-				System.out.println(r.id);
-			}
-		}
+//		for(ArrayList<Room> listy : protopaths) {
+//			for (Room r : listy) {
+//				System.out.println(r.id);
+//			}
+//		}
 		ArrayList<ArrayList<Door>> Adoorpaths = new ArrayList<ArrayList<Door>>();
 		for(ArrayList<Room> listy : protopaths) {
 			ArrayList<ArrayList<Door>> doorpaths = new ArrayList<ArrayList<Door>>();
@@ -292,7 +270,7 @@ public class Main extends Application {
 			int checkx = x + offsets[i].x;
 			int checky = y + offsets[i].y;
 			//avoid checking out of bounds. Pretend all OOB tiles are walls. 
-			if(checkx >= 0 && checkx < tiles.length && checky >= 0 && checky < tiles[0].length) nowfound = tiles[checkx][checky];
+			if(inBounds(checkx, checky, tiles)) nowfound = tiles[checkx][checky];
 			else nowfound = 1;
 			if (lastfound == 1 && nowfound != 1) spaces.add(new Point(checkx, checky));
 			lastfound = nowfound;
@@ -344,8 +322,7 @@ public class Main extends Application {
 							int checkx = n + offsets[k].x;
 							int checky = m + offsets[k].y;
 							//avoid checking out of bounds - the weirdness is to cover the NEXT check, too
-							if(checkx + offsets[k].x >= 0 && checkx + offsets[k].x < tiles.length && 
-									checky + offsets[k].y >= 0 && checky + offsets[k].y < tiles[0].length) {
+							if(inBounds(checkx + offsets[k].x, checky + offsets[k].y, tiles)) {
 								if(tiles[checkx][checky] == 2) {
 	//Bear with me here.
 	//doorsToCheck is the list of doors owned by the room at the origin that lead to the room on the far side of the found door
@@ -447,7 +424,7 @@ public class Main extends Application {
 					int checkx = origin.x + i;
 					int checky = origin.y + z;
 					//exclude checking tiles that are out of bounds
-					if (checkx >= 0 && checkx < tiles.length && checky >= 0 && checky < tiles[0].length) {
+					if (inBounds(checkx, checky, tiles)) {
 						//if this tile has not been found and is not a wall or a door
 						if(tilesfound[checkx][checky] == -1 && tiles[checkx][checky] != 1 && tiles[checkx][checky] != 2) {
 							Point pointy = new Point(checkx, checky);
@@ -492,10 +469,8 @@ public class Main extends Application {
 			for (int z = -1; z < 2; z++) {
 				int checkx = x + i;
 				int checky = y + z;
-				//don't check the origin tile
-				if ((checkx != 0 || checky != 0) && 
-						//don't check out of bounds
-						(checkx >= 0 && checkx < grid.length && checky >= 0 && checky < grid[0].length)) {
+				//don't check the origin tile //don't check out of bounds
+				if ((checkx != 0 || checky != 0) && inBounds(checkx, checky, grid)) {
 					if(found.contains(grid[checkx][checky]) == false) found.add(grid[checkx][checky]);
 				}
 			}
@@ -503,4 +478,9 @@ public class Main extends Application {
 		return found;
 	}
 	
+	public static boolean inBounds(int x, int y, int[][] grid) {
+		if(x >= 0 && y >= 0 && x < grid.length && y < grid[0].length) return true;
+		else return false;
+	}
+
 }
