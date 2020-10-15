@@ -3,7 +3,14 @@ package myPack;
 import java.awt.Point;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Random;
+
+import org.jgrapht.*;
+import org.jgrapht.graph.*;
+import org.jgrapht.nio.*;
+import org.jgrapht.nio.dot.*;
+import org.jgrapht.traverse.*;
 
 import javafx.animation.AnimationTimer;
 import javafx.application.Application;
@@ -16,13 +23,17 @@ import javafx.stage.Stage;
 
 public class Main extends Application {
 	
+	final static int fieldSize = 50;
 	static HashMap<Integer, Room> rooms = new HashMap<Integer, Room>();
-	static int[][] tiles = new int[50][50];
+	static int[][] tiles = new int[fieldSize][fieldSize];
 	static ArrayList<Point> changedTiles = new ArrayList<Point>();
 	static HashMap<Integer, Color> pallette = new HashMap<Integer, Color>();
 	static Random rand = new Random();
-	Room from = null;
-	Room to = null;
+	Point from = null;
+	Point to = null;
+	boolean refresh = false;
+	
+	ArrayList<Point> myPoints = new ArrayList<Point>();
 
 	public static void main(String[] args) {
 		pallette.put(0, Color.WHITE);
@@ -35,8 +46,8 @@ public class Main extends Application {
 	@Override
 	public void start(Stage stage) throws Exception {
 		Group root = new Group();
-		Scene scene = new Scene(root, 500, 500, Color.WHITE);
-		Canvas canvas = new Canvas(500, 500);
+		Scene scene = new Scene(root, fieldSize * 10, fieldSize * 10, Color.WHITE);
+		Canvas canvas = new Canvas(fieldSize * 10, fieldSize * 10);
 		GraphicsContext gc = canvas.getGraphicsContext2D();
 		//draw initial state, based on tiles
 		for (int i = 0; i < tiles.length; i++) {
@@ -51,8 +62,18 @@ public class Main extends Application {
         {
             public void handle(long currentNanoTime)
             {
+            	//redraw everything if requested
+            	if (refresh) {
+            		for(int i = 0; i < tiles.length; i ++) {
+            			for (int j = 0; j < tiles[0].length; j++) {
+                    		gc.setFill(pallette.get(tiles[i][j]));
+                    		gc.fillRect(i * 10, j * 10, 10, 10);
+            			}
+            		}
+            		refresh = false;
+            	}
             	//redraw tiles that have been changed
-                if(changedTiles.size() > 0) {
+            	else if(changedTiles.size() > 0) {
                 	//this counts backwards so removals don't disturb it
                 	for (int i = changedTiles.size() - 1; i >= 0; i--) {
                 		Point t = changedTiles.get(i);
@@ -77,8 +98,7 @@ public class Main extends Application {
         				if(neighbors.size() == 1) {
         					//and it's wall, make it open space
         					if(neighbors.get(0) == 1) {
-        						tiles[poked.x][poked.y] = 0;
-        						//TODO new room. we'll do 0 for now.
+        						tiles[poked.x][poked.y] = new Room().id;
         					}
         					//and it's not wall, make it that
         					else tiles[poked.x][poked.y] = neighbors.get(0);
@@ -144,31 +164,66 @@ public class Main extends Application {
 	        				rooms.get(above).createDoor(rooms.get(below), poked.x, poked.y);
 	        			}
 	        		}
+        			//test code that maps out the path between two points in the same room when you shift+click them in sequence
+//        			myPoints.add(poked);
+//        			if(myPoints.size() > 0 && myPoints.size() % 2 == 0) {
+//						int indi = myPoints.size() - 2;
+//        				Room room1 = rooms.get(tiles[myPoints.get(indi).x][myPoints.get(indi).y]);
+//            			List<Point> myPath = room1.getPath(myPoints.get(indi).x, myPoints.get(indi).y, 
+//        						myPoints.get(indi + 1).x, myPoints.get(indi + 1).y);
+//            			System.out.println(myPath);
+//            			for(int i = 0; i < myPath.size() - 1; i++) {
+//            				gc.strokeLine(myPath.get(i).x*10 + 5, myPath.get(i).y*10 + 5, 
+//            						myPath.get(i + 1).x*10 + 5, myPath.get(i + 1).y*10 + 5);
+//            			}
+//        			}
+        			//test code that maps out a room's graph when you shift click on it
+        			if(tiles[poked.x][poked.y] > 99) {
+	        			Room roomy = rooms.get(tiles[poked.x][poked.y]);
+	        			for (int i = 0; i < roomy.myGraph.refArray.length; i++) {
+	        				for (int j = 0; j < roomy.myGraph.refArray[0].length; j++) {
+	        					if(roomy.myGraph.refArray[i][j] != null) {
+	        						Point[] offsets = {new Point(0, 1), new Point(0, -1), new Point(1, 0), new Point(-1, 0)};
+	        						for (int k = 0; k < offsets.length; k++) {
+	        							int checkx = i + offsets[k].x;
+	        							int checky = j + offsets[k].y;
+	        							if(roomy.myGraph.inBounds(checkx, checky, true) && roomy.myGraph.refArray[checkx][checky] != null) {
+	        								if(roomy.myGraph.myGraph.getAllEdges(roomy.myGraph.refArray[i][j], 
+	        										roomy.myGraph.refArray[checkx][checky]) != null) {
+	        									gc.strokeLine(i*10 + roomy.myGraph.rootPoint.x*10 + 5, j*10 + roomy.myGraph.rootPoint.y*10 + 5,
+	        											checkx*10 + roomy.myGraph.rootPoint.x*10 + 5, checky*10 + roomy.myGraph.rootPoint.y*10 + 5);
+	        								}
+	        							}
+	        						}
+	        					}
+	        				}
+	        			}
+        			}
+        			
         		}
+        		//test code that triggers pathfinding between two alt-clicks
         		else if(e.isAltDown()) {
         			int idfound = tiles[poked.x][poked.y];
         			if(idfound > 99) {
-        				Room roomfound = rooms.get(tiles[poked.x][poked.y]);
         				if(from == null) {
-        					from = roomfound;
+        					from = poked;
         					System.out.println("From set");
         				}
         				else if(to == null) {
-        					if(roomfound != from) {
-        						to = roomfound;
-            					System.out.println("To set");
-            					ArrayList<ArrayList<Door>> doorpaths = findPath(from, to);
-            					for (ArrayList<Door> doorpath: doorpaths) {
-            						for (int i = 0; i < doorpath.size() - 1; i ++) {
-            							gc.strokeLine(doorpath.get(i).x * 10 + 5, doorpath.get(i).y * 10 + 5, 
-            									doorpath.get(i + 1).x * 10 + 5, doorpath.get(i + 1).y * 10 + 5);
-            						}
-            					}
+    						to = poked;
+        					System.out.println("To set");
+        					ArrayList<ArrayList<Door>> doorpaths = findPath(from, to);
+        					for (ArrayList<Door> doorpath: doorpaths) {
+        						for (int i = 0; i < doorpath.size() - 1; i ++) {
+        							gc.strokeLine(doorpath.get(i).x * 10 + 5, doorpath.get(i).y * 10 + 5, 
+        									doorpath.get(i + 1).x * 10 + 5, doorpath.get(i + 1).y * 10 + 5);
+        						}
         					}
     					}
     					else {
     						from = null;
     						to = null;
+    						refresh = true;
         					System.out.println("Reset");
     					}
         			}
@@ -183,10 +238,11 @@ public class Main extends Application {
 	}
 	
 	//the main pathfinding method that handles all the others
-	public static ArrayList<ArrayList<Door>> findPath(Room comingFrom, Room goingTo) {
+	public static ArrayList<ArrayList<Door>> findPath(Point comingFrom, Point goingTo) {
+		//find the room-paths between the two rooms
 		ArrayList <Room> fromAsAL = new ArrayList<Room>();
-		fromAsAL.add(comingFrom);
-		ArrayList<ArrayList<Room>> protopaths = seekRoom(fromAsAL, goingTo);
+		fromAsAL.add(rooms.get(tiles[comingFrom.x][comingFrom.y]));
+		ArrayList<ArrayList<Room>> protopaths = seekRoom(fromAsAL, rooms.get(tiles[goingTo.x][goingTo.y]));
 //		Uncomment this to print the room-paths to the console
 //		for(ArrayList<Room> listy : protopaths) {
 //			System.out.println("Path Start");
@@ -194,6 +250,7 @@ public class Main extends Application {
 //				System.out.println(r.id);
 //			}
 //		}
+		//find the door-paths connecting the two rooms
 		ArrayList<ArrayList<Door>> Adoorpaths = new ArrayList<ArrayList<Door>>();
 		for(ArrayList<Room> listy : protopaths) {
 			ArrayList<ArrayList<Door>> doorpaths = new ArrayList<ArrayList<Door>>();
@@ -222,9 +279,9 @@ public class Main extends Application {
 			}
 			Adoorpaths.addAll(doorpaths);
 		}
+		//find the specific path 
 		return Adoorpaths;
 	}
-	
 	
 	//the recursive function that generates the room-paths
 	public static ArrayList<ArrayList<Room>> seekRoom(ArrayList<Room> sofar, Room target) {
@@ -253,7 +310,6 @@ public class Main extends Application {
 		}
 		return myReturn;
 	}
-	
 	
 	//check if a room detection sweep needs to happen, and find seed coordinates for one
 	public ArrayList<Point> RDpreCheck(int x, int y) {
@@ -292,7 +348,6 @@ public class Main extends Application {
 		-1	0	*/
 	}
 	
-	
 	public void roomDetection (ArrayList<Point> origins) {
 		//if room detection isn't actually necessary, forget it
 		//consider rewriting this so you can use roomDetection in more situations?
@@ -317,12 +372,22 @@ public class Main extends Application {
 			//stores doors that might be modified by this pulse's results
 			ArrayList<Door> problemDoors = new ArrayList<Door>();
 			
+			//this area's pathfinding graph
+			PathingGraph newGraph = new PathingGraph();
+			
 			//check for doors adjacent to the newly found area
+			//(and set up the graph for pathing in this area)
+			
 			//first off, iterate through tilesfound
 			for(int n = 0; n < tilesfound.length; n++) {
 				for (int m = 0; m < tilesfound[0].length; m++) {
 					//if this is a newly "found" tile...
 					if(tilesfound[n][m] == 1) {
+						
+						//try to add it to the pathingGraph
+						newGraph.setVertex(n, m, true);
+						
+						//and check orth-adjacent to it for doors
 						Point[] offsets = {new Point(0, 1), new Point(1, 0), new Point(0, -1), new Point(-1, 0)};
 						for (int k = 0; k < offsets.length; k++) {
 							int checkx = n + offsets[k].x;
@@ -357,7 +422,7 @@ public class Main extends Application {
 				//if you only found open space
 				if(tfNow.contains(0)) {
 					//create a new room
-					Room newRoom = new Room();
+					Room newRoom = new Room(newGraph);
 					replaceTiles(tilesfound, 1, newRoom.id);
 				}
 				//if you only found one room
@@ -367,7 +432,7 @@ public class Main extends Application {
 						//room splitting
 						
 						//create a new room
-						Room newRoom = new Room();
+						Room newRoom = new Room(newGraph);
 						replaceTiles(tilesfound, 1, newRoom.id);
 						//transfer all relevant doors
 						for(Door d: problemDoors) {
@@ -377,6 +442,7 @@ public class Main extends Application {
 					//if this room hasn't been found already
 					else {
 						//just use it
+						rooms.get(tfNow.get(0)).myGraph = newGraph;
 						replaceTiles(tilesfound, 1, tfNow.get(0));
 					}
 				}
@@ -391,8 +457,11 @@ public class Main extends Application {
 				//if we only found one room plus empty space
 				if(tfNow.size() == 2 && tfNow.contains(0)) {
 					//just use the room
-					if(tfNow.indexOf(0) == 0) replaceTiles(tilesfound, 1, tfNow.get(1));
-					else replaceTiles(tilesfound, 1, tfNow.get(0));
+					int chosenRoom;
+					if(tfNow.indexOf(0) == 0) chosenRoom = tfNow.get(1);
+					else chosenRoom = tfNow.get(0);
+					rooms.get(chosenRoom).myGraph = newGraph;
+					replaceTiles(tilesfound, 1, chosenRoom);
 				}
 				//if we found more than one room (potentially plus empty space)
 				else {
@@ -401,6 +470,7 @@ public class Main extends Application {
 					int chosenRoom;
 					if(tfNow.indexOf(0) == 0) chosenRoom = tfNow.get(1);
 					else chosenRoom = tfNow.get(0);
+					rooms.get(chosenRoom).myGraph = newGraph;
 					replaceTiles(tilesfound, 1, chosenRoom);
 					for(int tiletype: tfNow) {
 						if(tiletype != 0 && tiletype != chosenRoom) {
@@ -420,7 +490,6 @@ public class Main extends Application {
 		}
 	}
 	
-		
 	//recursive method used in room detection
 	//return is a list of all the distinct tile contents found (excluding walls)
 	public ArrayList<Integer> rdPulse (Point origin, int[][] tilesfound) {
@@ -450,8 +519,6 @@ public class Main extends Application {
 		return myReturn;
 	}
 	
-	
-	
 	public static Color randomColor() {
 		double r = rand.nextDouble();
 		double g = rand.nextDouble();
@@ -459,8 +526,6 @@ public class Main extends Application {
 		return Color.color(r, g, b);
 	}
 	
-	
-
 	public void replaceTiles(int[][] grid, int find, int replace) {
 		for(int i = 0; i < grid.length; i++) {
 			for (int z = 0; z < grid[0].length; z++) {
@@ -470,8 +535,6 @@ public class Main extends Application {
 			}
 		}
 	}
-	
-	
 
 	public ArrayList<Integer> sampleAdjacents(int[][] grid, int x, int y) {
 		ArrayList<Integer> found = new ArrayList<Integer>();

@@ -3,22 +3,16 @@ package myPack;
 import java.awt.Point;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 
 import javafx.scene.paint.Color;
 
 public class Room {
 	public HashMap<Room, ArrayList<Door>> doors = new HashMap<Room, ArrayList<Door>>();
+	public PathingGraph myGraph = new PathingGraph();
 	static int lastID = 99;
 	public int id;
 	public Color chroma;
-	
-	//UNUSED
-	public ArrayList<Door> pathThrough (Door comingFrom, Room goingTo) {
-		if(doors.get(goingTo) == null || doors.get(goingTo).size() < 1) {
-			System.out.println("ERROR - invalid path request");
-		}
-		return doors.get(goingTo);
-	}
 	
 	public Door getDoorByLocation(int x, int y) {
 		for (Room r: doors.keySet()) {
@@ -27,6 +21,25 @@ public class Room {
 			}
 		}
 		return null;
+	}
+	
+	public List<Point> getPath(int x1, int y1, int x2, int y2) {
+		return myGraph.getPath(x1, y1, x2, y2).getVertexList();
+	}
+	
+	public void refreshDoorPaths() {
+		for (Room r: doors.keySet()) {
+			for (Door d: doors.get(r)) {
+				//yup, nested iteration, sorry
+				for (Room ro: doors.keySet()) {
+					for (Door dor: doors.get(ro)) {
+						if(dor.equals(d) == false) {
+							getPath(d.x, d.y, dor.x, dor.y);
+						}
+					}
+				}
+			}
+		}
 	}
 	
 	//Door Handling Methods
@@ -38,6 +51,7 @@ public class Room {
 		if(doors.get(destRoom) != null) destDoors.addAll(doors.get(destRoom));
 		destDoors.add(new Door(x, y));
 		doors.put(destRoom, destDoors);
+		myGraph.setVertex(x, y, true);
 	}
 	
 	//overload that takes an existing door object instead of location - used by createDoor and transferDoor
@@ -46,6 +60,7 @@ public class Room {
 		if(doors.get(destRoom) != null) destDoors.addAll(doors.get(destRoom));
 		destDoors.add(d);
 		doors.put(destRoom, destDoors);
+		myGraph.setVertex(d.x, d.y, true);
 	}
 	
 	//initiates the full process of creating a door-pair
@@ -77,6 +92,7 @@ public class Room {
 			}
 			if(newList.containsAll(doors.get(dest)) == false) doors.put(dest, newList);
 		}
+		myGraph.setVertex(d.x, d.y, false);
 	}
 	
 	public void transferAllDoors (Room newRoom) {
@@ -116,6 +132,7 @@ public class Room {
 			}
 			if(newList.containsAll(doors.get(dest)) == false) doors.put(dest, newList);
 		}
+		myGraph.setVertex(d.x, d.y, false);
 	}
 	
 	//initiates the full process of deleting and cleaning up a door
@@ -136,6 +153,7 @@ public class Room {
 			}
 			if(newList.containsAll(doors.get(dest)) == false) doors.put(dest, newList);
 		}
+		myGraph.setVertex(d.x, d.y, false);
 	}
 	
 	//Constructor Stuff
@@ -150,6 +168,14 @@ public class Room {
 		chroma = Main.randomColor();
 		Main.pallette.put(id, chroma);
 		Main.rooms.put(id, this);
+	}
+	
+	public Room (PathingGraph graphIn) {
+		id = nextID();
+		chroma = Main.randomColor();
+		Main.pallette.put(id, chroma);
+		Main.rooms.put(id, this);
+		myGraph = graphIn;
 	}
 	
 }
