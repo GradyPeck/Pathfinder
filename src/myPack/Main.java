@@ -240,12 +240,10 @@ public class Main extends Application {
         				else if(to == null) {
     						to = poked;
         					System.out.println("To set");
-        					ArrayList<ArrayList<Door>> doorpaths = findPath(from, to);
-        					for (ArrayList<Door> doorpath: doorpaths) {
-        						for (int i = 0; i < doorpath.size() - 1; i ++) {
-        							gc.strokeLine(doorpath.get(i).x * 10 + 5, doorpath.get(i).y * 10 + 5, 
-        									doorpath.get(i + 1).x * 10 + 5, doorpath.get(i + 1).y * 10 + 5);
-        						}
+        					Path pathy = findPath(from, to);
+        					for (int i = 0; i < pathy.points.size() - 1; i++) {
+        						gc.strokeLine(pathy.points.get(i).x*10 + 5, pathy.points.get(i).y*10 + 5, 
+        								pathy.points.get(i + 1).x*10 + 5, pathy.points.get(i + 1).y*10 + 5);
         					}
     					}
     					else {
@@ -266,11 +264,15 @@ public class Main extends Application {
 	}
 	
 	//the main pathfinding method that handles all the others
-	public static ArrayList<ArrayList<Door>> findPath(Point comingFrom, Point goingTo) {
+	public static Path findPath(Point comingFrom, Point goingTo) {
+		Room initialRoom = rooms.get(tiles[comingFrom.x][comingFrom.y]);
+		Room finalRoom = rooms.get(tiles[goingTo.x][goingTo.y]);
+		if(initialRoom == null || finalRoom == null) return null;
+		if(initialRoom == finalRoom) return initialRoom.getPath(comingFrom.x, comingFrom.y, goingTo.x, goingTo.y);
 		//find the room-paths between the two rooms
 		ArrayList <Room> fromAsAL = new ArrayList<Room>();
-		fromAsAL.add(rooms.get(tiles[comingFrom.x][comingFrom.y]));
-		ArrayList<ArrayList<Room>> protopaths = seekRoom(fromAsAL, rooms.get(tiles[goingTo.x][goingTo.y]));
+		fromAsAL.add(initialRoom);
+		ArrayList<ArrayList<Room>> protopaths = seekRoom(fromAsAL, finalRoom);
 //		Uncomment this to print the room-paths to the console
 //		for(ArrayList<Room> listy : protopaths) {
 //			System.out.println("Path Start");
@@ -307,8 +309,38 @@ public class Main extends Application {
 			}
 			Adoorpaths.addAll(doorpaths);
 		}
-		//find the specific path 
-		return Adoorpaths;
+		//find the specific path
+		HashMap<Door, Path> escapes = new HashMap<Door, Path>();
+		HashMap<Door, Path> arrivals = new HashMap<Door, Path>();
+		//find the shortest doorpath
+		int numToBeat = Integer.MAX_VALUE;
+		ArrayList<Door> bestPath = new ArrayList<Door>();
+		for (ArrayList<Door> doorpath: Adoorpaths) {
+			//find a path to the first door of this doorpath if you don't have one yet
+			Door firstDoor = doorpath.get(0);
+			if(escapes.get(firstDoor) == null) escapes.put(firstDoor, initialRoom.getPath(comingFrom.x, comingFrom.y, firstDoor.x, firstDoor.y));
+			//sum the length of the doorpath
+			int thisLength = escapes.get(firstDoor).length;
+			for(int i = 0; i < doorpath.size() - 1; i++) {
+				thisLength += doorpath.get(i).portal.paths.get(doorpath.get(i + 1)).length;
+			}
+			//find a path from the last door of this doorpath if you don't have one yet
+			Door lastDoor = doorpath.get(doorpath.size() - 1).portal;
+			if(arrivals.get(lastDoor) == null) arrivals.put(lastDoor, finalRoom.getPath(lastDoor.x, lastDoor.y, goingTo.x, goingTo.y));
+			thisLength += arrivals.get(lastDoor).length;
+			//check if it's the best found so far
+			if(thisLength < numToBeat) {
+				numToBeat = thisLength;
+				bestPath = doorpath;
+			}
+		}
+		//chain all the path segments together
+		Path myReturn = escapes.get(bestPath.get(0));
+		for(int i = 0; i < bestPath.size() - 1; i++) {
+			myReturn.append(bestPath.get(i).portal.paths.get(bestPath.get(i + 1)));
+		}
+		myReturn.append(arrivals.get(bestPath.get(bestPath.size() - 1).portal));
+		return myReturn;
 	}
 	
 	//the recursive function that generates the room-paths

@@ -25,8 +25,12 @@ public class Room {
 		return null;
 	}
 	
-	public GraphPath<Point, DefaultEdge> getPath(int x1, int y1, int x2, int y2) {
-		return myGraph.getPath(x1, y1, x2, y2);
+	//requests a path between the target coordinates
+	//TODO make this more robust (eg to invalid coordinates), make it return a Path object
+	public Path getPath(int x1, int y1, int x2, int y2) {
+		GraphPath<Point, DefaultEdge> gp = myGraph.getPath(x1, y1, x2, y2);
+		Path myReturn = new Path(gp.getLength(), gp.getVertexList());
+		return myReturn;
 	}
 	
 	public void refreshDoorPaths() {
@@ -36,8 +40,7 @@ public class Room {
 				for (Room ro: doors.keySet()) {
 					for (Door dor: doors.get(ro)) {
 						if(dor.equals(d) == false) {
-							GraphPath<Point, DefaultEdge> pathy = getPath(d.x, d.y, dor.x, dor.y);
-							d.paths.put(dor, new Path(pathy.getLength(), pathy.getVertexList()));
+							d.paths.put(dor, getPath(d.x, d.y, dor.x, dor.y));
 						}
 					}
 				}
@@ -163,13 +166,14 @@ public class Room {
 	}
 	
 	//Constructor Stuff
+	
 	//returns the next possible roomID and advances to the next one
 	public static int nextID () {
 		lastID++;
 		return lastID;
 	}
 	
-	//create a one-tile room at the target coordinates
+	//constructor for a one-tile room at the target coordinates
 	public Room (int x, int y) {
 		id = nextID();
 		chroma = Main.randomColor();
@@ -178,7 +182,7 @@ public class Room {
 		myGraph.setVertex(x, y, true);
 	}
 	
-	//create a room with the given PathingGraph
+	//constructor for a room with the given PathingGraph
 	public Room (PathingGraph graphIn) {
 		id = nextID();
 		chroma = Main.randomColor();
