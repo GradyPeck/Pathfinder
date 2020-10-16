@@ -10,10 +10,10 @@ import org.jgrapht.graph.SimpleGraph;
 
 public class PathingGraph {
 
-	public Graph<Point, DefaultEdge> myGraph = new SimpleGraph<>(DefaultEdge.class);
+	public Graph<Point, DefaultEdge> realGraph = new SimpleGraph<>(DefaultEdge.class);
 	public Point[][] refArray = new Point[Main.tiles.length][Main.tiles[0].length];
 	public Point rootPoint = new Point(-1, -1);
-    AStarShortestPath<Point, DefaultEdge> shorty = new AStarShortestPath<Point, DefaultEdge>(myGraph, new Heu());
+    AStarShortestPath<Point, DefaultEdge> shorty = new AStarShortestPath<Point, DefaultEdge>(realGraph, new Heu());
 	
 	public void setVertex(int x, int y, boolean passable) {
 		if(passable) {
@@ -51,7 +51,7 @@ public class PathingGraph {
 			//new vertex
 			if(refArray[checkPoint.x][checkPoint.y] == null) {
 				Point newV = new Point(x, y);
-				myGraph.addVertex(newV);
+				realGraph.addVertex(newV);
 				refArray[checkPoint.x][checkPoint.y] = newV;
 
 				//connect to all existing neighbbors (not null, within bounds)
@@ -60,7 +60,7 @@ public class PathingGraph {
 					int checkx = checkPoint.x + offsets[k].x;
 					int checky = checkPoint.y + offsets[k].y;
 					if(inBounds(checkx, checky, true)) {
-						if(refArray[checkx][checky] != null) myGraph.addEdge(newV, refArray[checkx][checky]);
+						if(refArray[checkx][checky] != null) realGraph.addEdge(newV, refArray[checkx][checky]);
 					}
 				}
 			}
@@ -69,7 +69,7 @@ public class PathingGraph {
 		else if(inBounds(x, y, false)) {
 			Point checkPoint = new Point(x - rootPoint.x, y - rootPoint.y);
 			if(refArray[checkPoint.x][checkPoint.y] != null) {
-				myGraph.removeVertex(refArray[checkPoint.x][checkPoint.y]);
+				realGraph.removeVertex(refArray[checkPoint.x][checkPoint.y]);
 				refArray[checkPoint.x][checkPoint.y] = null;
 			}
 		}

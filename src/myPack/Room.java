@@ -169,13 +169,16 @@ public class Room {
 		return lastID;
 	}
 	
-	public Room () {
+	//create a one-tile room at the target coordinates
+	public Room (int x, int y) {
 		id = nextID();
 		chroma = Main.randomColor();
 		Main.pallette.put(id, chroma);
 		Main.rooms.put(id, this);
+		myGraph.setVertex(x, y, true);
 	}
 	
+	//create a room with the given PathingGraph
 	public Room (PathingGraph graphIn) {
 		id = nextID();
 		chroma = Main.randomColor();

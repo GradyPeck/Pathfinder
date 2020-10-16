@@ -91,15 +91,33 @@ public class Main extends Application {
         				if(neighbors.size() == 1) {
         					//and it's wall, make it a new room
         					if(neighbors.get(0) == 1) {
-        						tiles[poked.x][poked.y] = new Room().id;
+        						tiles[poked.x][poked.y] = new Room(poked.x, poked.y).id;
         					}
         					//and it's not wall, make it that
-        					else tiles[poked.x][poked.y] = neighbors.get(0);
+        					else {
+        						Room roomy = rooms.get(neighbors.get(0));
+        	        			if(roomy != null) {
+        	        				roomy.myGraph.setVertex(poked.x, poked.y, true);
+        	        			}
+        	        			tiles[poked.x][poked.y] = neighbors.get(0);
+        					}
         				}
         				//if there are exactly two and one is wall, set it to the other one
         				else if(neighbors.size() == 2 && neighbors.contains(1)) {
-        					if(neighbors.indexOf(1) == 0) tiles[poked.x][poked.y] = neighbors.get(1);
-        					else tiles[poked.x][poked.y] = neighbors.get(0);
+        					if(neighbors.indexOf(1) == 0) {
+        						Room roomy = rooms.get(neighbors.get(1));
+        	        			if(roomy != null) {
+        	        				roomy.myGraph.setVertex(poked.x, poked.y, true);
+        	        			}
+        	        			tiles[poked.x][poked.y] = neighbors.get(1);
+        					}
+        					else {
+        						Room roomy = rooms.get(neighbors.get(0));
+        	        			if(roomy != null) {
+        	        				roomy.myGraph.setVertex(poked.x, poked.y, true);
+        	        			}
+        	        			tiles[poked.x][poked.y] = neighbors.get(0);
+        					}
         				}
         				else {
         					ArrayList<Point> checks = RDpreCheck(poked.x, poked.y);
@@ -123,6 +141,10 @@ public class Main extends Application {
 	        					doorsToRemove.get(d).deleteDoor(d);
 	        				}
 		        		}
+	        			Room roomy = rooms.get(tiles[poked.x][poked.y]);
+	        			if(roomy != null) {
+	        				roomy.myGraph.setVertex(poked.x, poked.y, false);
+	        			}
 		        		tiles[poked.x][poked.y] = 1;
 		        		changedTiles.add(poked);
 		        		
@@ -181,7 +203,7 @@ public class Main extends Application {
 	        							int checkx = i + offsets[k].x;
 	        							int checky = j + offsets[k].y;
 	        							if(roomy.myGraph.inBounds(checkx, checky, true) && roomy.myGraph.refArray[checkx][checky] != null) {
-	        								if(roomy.myGraph.myGraph.getAllEdges(roomy.myGraph.refArray[i][j], 
+	        								if(roomy.myGraph.realGraph.getAllEdges(roomy.myGraph.refArray[i][j], 
 	        										roomy.myGraph.refArray[checkx][checky]) != null) {
 	        									gc.strokeLine(i*10 + roomy.myGraph.rootPoint.x*10 + 5, j*10 + roomy.myGraph.rootPoint.y*10 + 5,
 	        											checkx*10 + roomy.myGraph.rootPoint.x*10 + 5, checky*10 + roomy.myGraph.rootPoint.y*10 + 5);
@@ -372,8 +394,17 @@ public class Main extends Application {
 		ArrayList<Integer> typesfound = new ArrayList<Integer>();
 		
 		for (int i = 0; i < origins.size(); i++) {
-			//stores distinct tiles found on this pulse only
+			//stores distinct tiles found on this pulse only (this is also where the pulse gets tripped)
 			ArrayList<Integer> tfNow = rdPulse(origins.get(i), tilesfound);
+			
+			//special case cleanup for one-tile rooms
+			if(tilesfound[origins.get(i).x][origins.get(i).y] == -1) {
+				tilesfound[origins.get(i).x][origins.get(i).y] = 1;
+				tfNow.add(tiles[origins.get(i).x][origins.get(i).y]);
+			}
+			
+			//if we didn't find anything (ie because this origin was subsumed by an earlier pulse)
+			if(tfNow.size() == 0) continue;
 			
 			//stores doors that might be modified by this pulse's results
 			ArrayList<Door> problemDoors = new ArrayList<Door>();
@@ -460,11 +491,6 @@ public class Main extends Application {
 					}
 				}
 			}
-			//This happens when merging rooms - the second pulse is surrounded by found tiles and fails instantly
-			else if (tfNow.size() == 0) {
-				//System.out.println("Pulse found no tile types");
-				continue;
-			}
 			//if we found more than one type, ie because a wall was removed
 			else {
 				//if we only found one room plus empty space
@@ -503,7 +529,6 @@ public class Main extends Application {
 		}
 	}
 	
-	//TODO fix the one-tile room detection issue
 	//recursive method used in room detection
 	//return is a list of all the distinct tile contents found (excluding walls)
 	public ArrayList<Integer> rdPulse (Point origin, int[][] tilesfound) {
@@ -520,6 +545,7 @@ public class Main extends Application {
 						//if this tile has not been found and is not a wall or a door
 						if(tilesfound[checkx][checky] == -1 && tiles[checkx][checky] != 1 && tiles[checkx][checky] != 2) {
 							Point pointy = new Point(checkx, checky);
+							//log the tile type (if it's new to this pulse)
 							if(myReturn.contains(tiles[checkx][checky]) == false) myReturn.add(tiles[checkx][checky]);
 							tilesfound[checkx][checky] = 1;
 							for(Integer res: rdPulse(pointy, tilesfound)) {
