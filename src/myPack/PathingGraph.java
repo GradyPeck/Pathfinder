@@ -55,14 +55,31 @@ public class PathingGraph {
 				refArray[checkPoint.x][checkPoint.y] = newV;
 
 				//connect to all existing neighbbors (not null, within bounds)
-				Point[] offsets = {new Point(0, 1), new Point(0, -1), new Point(1, 0), new Point(-1, 0)};
+				//commented chunks turn on diagonal mode, which isn't quite done
+				Point[] offsets = {new Point(0, 1), new Point(0, -1), new Point(1, 0), new Point(-1, 0)
+						//additional points for diagonal pathing
+						/*, new Point(-1, -1), new Point(-1, 1), new Point(1, 1), new Point(1, -1)/**/
+						};
 				for (int k = 0; k < offsets.length; k++) {
 					int checkx = checkPoint.x + offsets[k].x;
 					int checky = checkPoint.y + offsets[k].y;
 					if(inBounds(checkx, checky, true)) {
-						if(refArray[checkx][checky] != null) realGraph.addEdge(newV, refArray[checkx][checky]);
+						if(refArray[checkx][checky] != null) {
+							//this weird conditional is for diagonal connectors
+							/*if(Math.abs(offsets[k].x) + Math.abs(offsets[k].y) != 2 || 
+									(refArray[checkx][checkPoint.y] != null && refArray[checkPoint.x][checky] != null))/**/
+								realGraph.addEdge(newV, refArray[checkx][checky]);
+						}
 					}
 				}
+				//more diagonal goofiness
+				/*if(inBounds(checkPoint.x - 1, checkPoint.y - 1, true)) {
+					if(refArray[checkPoint.x - 1][checkPoint.y] != null && 
+							refArray[checkPoint.x][checkPoint.y - 1] != null &&
+								refArray[checkPoint.x - 1][checkPoint.y - 1] != null) {
+						realGraph.addEdge(refArray[checkPoint.x - 1][checkPoint.y], refArray[checkPoint.x][checkPoint.y - 1]);
+					}
+				}*/
 			}
 		}
 		//if we're setting the point impassable (and it's within bounds)

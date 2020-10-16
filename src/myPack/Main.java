@@ -157,6 +157,7 @@ public class Main extends Application {
 		scene.setOnMouseClicked(new EventHandler<MouseEvent>() {
         	public void handle(MouseEvent e) {
         		Point poked = new Point(Math.min((int) (e.getX()/10), 49), Math.min((int) (e.getY()/10), 49));
+        		//shift-click on a wall between rooms to place doors
         		if(e.isShiftDown()) {
 	        		if(tiles[poked.x][poked.y] == 1) {
 	        			int above;
@@ -179,31 +180,20 @@ public class Main extends Application {
 	        				rooms.get(above).createDoor(rooms.get(below), poked.x, poked.y);
 	        			}
 	        		}
-        			//test code that maps out the path between two points in the same room when you shift+click them in sequence
-//        			myPoints.add(poked);
-//        			if(myPoints.size() > 0 && myPoints.size() % 2 == 0) {
-//						int indi = myPoints.size() - 2;
-//        				Room room1 = rooms.get(tiles[myPoints.get(indi).x][myPoints.get(indi).y]);
-//            			List<Point> myPath = room1.getPath(myPoints.get(indi).x, myPoints.get(indi).y, 
-//        						myPoints.get(indi + 1).x, myPoints.get(indi + 1).y).getVertexList();
-//            			System.out.println(myPath);
-//            			for(int i = 0; i < myPath.size() - 1; i++) {
-//            				gc.strokeLine(myPath.get(i).x*10 + 5, myPath.get(i).y*10 + 5, 
-//            						myPath.get(i + 1).x*10 + 5, myPath.get(i + 1).y*10 + 5);
-//            			}
-//        			}
         			//test code that maps out a room's graph when you shift click on it
         			if(tiles[poked.x][poked.y] > 99) {
 	        			Room roomy = rooms.get(tiles[poked.x][poked.y]);
 	        			for (int i = 0; i < roomy.myGraph.refArray.length; i++) {
 	        				for (int j = 0; j < roomy.myGraph.refArray[0].length; j++) {
 	        					if(roomy.myGraph.refArray[i][j] != null) {
-	        						Point[] offsets = {new Point(0, 1), new Point(0, -1), new Point(1, 0), new Point(-1, 0)};
+	        						Point[] offsets = {new Point(0, 1), new Point(0, -1), new Point(1, 0), new Point(-1, 0),
+	        								new Point(1, 1), new Point(1, -1), new Point(-1, 1), new Point(-1, -1)
+	        								};
 	        						for (int k = 0; k < offsets.length; k++) {
 	        							int checkx = i + offsets[k].x;
 	        							int checky = j + offsets[k].y;
 	        							if(roomy.myGraph.inBounds(checkx, checky, true) && roomy.myGraph.refArray[checkx][checky] != null) {
-	        								if(roomy.myGraph.realGraph.getAllEdges(roomy.myGraph.refArray[i][j], 
+	        								if(roomy.myGraph.realGraph.getEdge(roomy.myGraph.refArray[i][j], 
 	        										roomy.myGraph.refArray[checkx][checky]) != null) {
 	        									gc.strokeLine(i*10 + roomy.myGraph.rootPoint.x*10 + 5, j*10 + roomy.myGraph.rootPoint.y*10 + 5,
 	        											checkx*10 + roomy.myGraph.rootPoint.x*10 + 5, checky*10 + roomy.myGraph.rootPoint.y*10 + 5);
@@ -513,7 +503,6 @@ public class Main extends Application {
 						//just use it
 						Room roomy = rooms.get(tfNow.get(0));
 						roomy.myGraph = newGraph;
-						//TODO make sure this bit isn't causing problems
 						for (Room r: roomy.doors.keySet()) {
 							for (Door d: roomy.doors.get(r)) {
 								roomy.myGraph.setVertex(d.x, d.y, true);
@@ -531,7 +520,13 @@ public class Main extends Application {
 					int chosenRoom;
 					if(tfNow.indexOf(0) == 0) chosenRoom = tfNow.get(1);
 					else chosenRoom = tfNow.get(0);
-					rooms.get(chosenRoom).myGraph = newGraph;
+					Room roomy = rooms.get(chosenRoom);
+					roomy.myGraph = newGraph;		
+					for (Room r: roomy.doors.keySet()) {
+						for (Door d: roomy.doors.get(r)) {
+							roomy.myGraph.setVertex(d.x, d.y, true);
+						}
+					}
 					replaceTiles(tilesfound, 1, chosenRoom);
 				}
 				//if we found more than one room (potentially plus empty space)
@@ -541,7 +536,13 @@ public class Main extends Application {
 					int chosenRoom;
 					if(tfNow.indexOf(0) == 0) chosenRoom = tfNow.get(1);
 					else chosenRoom = tfNow.get(0);
-					rooms.get(chosenRoom).myGraph = newGraph;
+					Room roomy = rooms.get(chosenRoom);
+					roomy.myGraph = newGraph;		
+					for (Room r: roomy.doors.keySet()) {
+						for (Door d: roomy.doors.get(r)) {
+							roomy.myGraph.setVertex(d.x, d.y, true);
+						}
+					}
 					replaceTiles(tilesfound, 1, chosenRoom);
 					for(int tiletype: tfNow) {
 						if(tiletype != 0 && tiletype != chosenRoom) {
