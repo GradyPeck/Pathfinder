@@ -3,7 +3,9 @@ package myPack;
 import java.awt.Point;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
+
+import org.jgrapht.GraphPath;
+import org.jgrapht.graph.DefaultEdge;
 
 import javafx.scene.paint.Color;
 
@@ -23,8 +25,8 @@ public class Room {
 		return null;
 	}
 	
-	public List<Point> getPath(int x1, int y1, int x2, int y2) {
-		return myGraph.getPath(x1, y1, x2, y2).getVertexList();
+	public GraphPath<Point, DefaultEdge> getPath(int x1, int y1, int x2, int y2) {
+		return myGraph.getPath(x1, y1, x2, y2);
 	}
 	
 	public void refreshDoorPaths() {
@@ -34,7 +36,8 @@ public class Room {
 				for (Room ro: doors.keySet()) {
 					for (Door dor: doors.get(ro)) {
 						if(dor.equals(d) == false) {
-							getPath(d.x, d.y, dor.x, dor.y);
+							GraphPath<Point, DefaultEdge> pathy = getPath(d.x, d.y, dor.x, dor.y);
+							d.paths.put(dor, new Path(pathy.getLength(), pathy.getVertexList()));
 						}
 					}
 				}
@@ -73,6 +76,8 @@ public class Room {
 		destRoom.addDoor(this, portalpal);
 		Main.tiles[x][y] = 2;
 		Main.changedTiles.add(new Point(x, y));
+		refreshDoorPaths();
+		destRoom.refreshDoorPaths();
 	}
 	
 	//transfers a door from one room to another
@@ -93,6 +98,7 @@ public class Room {
 			if(newList.containsAll(doors.get(dest)) == false) doors.put(dest, newList);
 		}
 		myGraph.setVertex(d.x, d.y, false);
+		newRoom.refreshDoorPaths();
 	}
 	
 	public void transferAllDoors (Room newRoom) {

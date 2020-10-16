@@ -3,14 +3,7 @@ package myPack;
 import java.awt.Point;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Random;
-
-import org.jgrapht.*;
-import org.jgrapht.graph.*;
-import org.jgrapht.nio.*;
-import org.jgrapht.nio.dot.*;
-import org.jgrapht.traverse.*;
 
 import javafx.animation.AnimationTimer;
 import javafx.application.Application;
@@ -96,7 +89,7 @@ public class Main extends Application {
         				ArrayList<Integer> neighbors = sampleAdjacents(tiles, poked.x, poked.y);
         				//if there's exactly one type adjacent...
         				if(neighbors.size() == 1) {
-        					//and it's wall, make it open space
+        					//and it's wall, make it a new room
         					if(neighbors.get(0) == 1) {
         						tiles[poked.x][poked.y] = new Room().id;
         					}
@@ -170,7 +163,7 @@ public class Main extends Application {
 //						int indi = myPoints.size() - 2;
 //        				Room room1 = rooms.get(tiles[myPoints.get(indi).x][myPoints.get(indi).y]);
 //            			List<Point> myPath = room1.getPath(myPoints.get(indi).x, myPoints.get(indi).y, 
-//        						myPoints.get(indi + 1).x, myPoints.get(indi + 1).y);
+//        						myPoints.get(indi + 1).x, myPoints.get(indi + 1).y).getVertexList();
 //            			System.out.println(myPath);
 //            			for(int i = 0; i < myPath.size() - 1; i++) {
 //            				gc.strokeLine(myPath.get(i).x*10 + 5, myPath.get(i).y*10 + 5, 
@@ -199,7 +192,20 @@ public class Main extends Application {
 	        				}
 	        			}
         			}
-        			
+        			//test code that maps out a room's door-paths when you shift click on it
+//	        		if(tiles[poked.x][poked.y] > 99) {
+//	        			Room roomy = rooms.get(tiles[poked.x][poked.y]);
+//	        			for (Room r: roomy.doors.keySet()) {
+//	        				for (Door d: roomy.doors.get(r)) {
+//	        					for (Door dor: d.paths.keySet()) {
+//	        						for (Point p: d.paths.get(dor).points) {
+//	        							gc.fillOval(p.x*10 + 2, p.y*10 + 2, 3, 3);
+//	        						}
+//	        					}
+//	        				}
+//	        			}
+//        			}
+	        		
         		}
         		//test code that triggers pathfinding between two alt-clicks
         		else if(e.isAltDown()) {
@@ -442,7 +448,14 @@ public class Main extends Application {
 					//if this room hasn't been found already
 					else {
 						//just use it
-						rooms.get(tfNow.get(0)).myGraph = newGraph;
+						Room roomy = rooms.get(tfNow.get(0));
+						roomy.myGraph = newGraph;
+						//TODO make sure this bit isn't causing problems
+						for (Room r: roomy.doors.keySet()) {
+							for (Door d: roomy.doors.get(r)) {
+								roomy.myGraph.setVertex(d.x, d.y, true);
+							}
+						}
 						replaceTiles(tilesfound, 1, tfNow.get(0));
 					}
 				}
@@ -490,6 +503,7 @@ public class Main extends Application {
 		}
 	}
 	
+	//TODO fix the one-tile room detection issue
 	//recursive method used in room detection
 	//return is a list of all the distinct tile contents found (excluding walls)
 	public ArrayList<Integer> rdPulse (Point origin, int[][] tilesfound) {

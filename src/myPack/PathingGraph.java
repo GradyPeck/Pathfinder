@@ -12,47 +12,45 @@ public class PathingGraph {
 
 	public Graph<Point, DefaultEdge> myGraph = new SimpleGraph<>(DefaultEdge.class);
 	public Point[][] refArray = new Point[Main.tiles.length][Main.tiles[0].length];
-	//public Point rootPoint = new Point(-1, -1);
-	public Point rootPoint = new Point(0, 0);
+	public Point rootPoint = new Point(-1, -1);
     AStarShortestPath<Point, DefaultEdge> shorty = new AStarShortestPath<Point, DefaultEdge>(myGraph, new Heu());
 	
 	public void setVertex(int x, int y, boolean passable) {
 		if(passable) {
-//			if(rootPoint.x == -1) {
-//				rootPoint = new Point(x, y);
-//				refArray = new Point[1][1];
-//			}
-//			else {
-//				if(x < rootPoint.x || y < rootPoint.y) {
-//					int xGrow = Math.max(rootPoint.x - x, 0);
-//					int yGrow = Math.max(rootPoint.y - y, 0);
-//					Point newRoot = new Point(rootPoint.x - xGrow, rootPoint.y - yGrow);
-//					Point[][] newArray = new Point[refArray.length + xGrow][refArray[0].length + yGrow];
-//					for (int i = 0; i < refArray.length; i++) {
-//						for (int j = 0; j < refArray[0].length; j++) {
-//							if(refArray[i][j] != null) refArray[i][j].setLocation(i + xGrow, j + yGrow);
-//							newArray[i + xGrow][j + yGrow] = refArray[i][j];
-//						}
-//					}
-//					refArray = newArray;
-//					rootPoint = newRoot;
-//				}
-//				if(x > rootPoint.x + (refArray.length - 1) || y > rootPoint.y + (refArray[0].length - 1)) {
-//					int xGrow = Math.max(x - ((refArray.length - 1) + rootPoint.x), 0);
-//					int yGrow = Math.max(y - ((refArray[0].length - 1) + rootPoint.y), 0);
-//					Point[][] newArray = new Point[refArray.length + xGrow][refArray[0].length + yGrow];
-//					for (int i = 0; i < refArray.length; i++) {
-//						for (int j = 0; j < refArray[0].length; j++) {
-//							newArray[i][j] = refArray[i][j];
-//						}
-//					}
-//					refArray = newArray;
-//				}
-//			}
+			if(rootPoint.x == -1) {
+				rootPoint = new Point(x, y);
+				refArray = new Point[1][1];
+			}
+			else {
+				if(x < rootPoint.x || y < rootPoint.y) {
+					int xGrow = Math.max(rootPoint.x - x, 0);
+					int yGrow = Math.max(rootPoint.y - y, 0);
+					Point newRoot = new Point(rootPoint.x - xGrow, rootPoint.y - yGrow);
+					Point[][] newArray = new Point[refArray.length + xGrow][refArray[0].length + yGrow];
+					for (int i = 0; i < refArray.length; i++) {
+						for (int j = 0; j < refArray[0].length; j++) {
+							newArray[i + xGrow][j + yGrow] = refArray[i][j];
+						}
+					}
+					refArray = newArray;
+					rootPoint = newRoot;
+				}
+				if(x > rootPoint.x + (refArray.length - 1) || y > rootPoint.y + (refArray[0].length - 1)) {
+					int xGrow = Math.max(x - ((refArray.length - 1) + rootPoint.x), 0);
+					int yGrow = Math.max(y - ((refArray[0].length - 1) + rootPoint.y), 0);
+					Point[][] newArray = new Point[refArray.length + xGrow][refArray[0].length + yGrow];
+					for (int i = 0; i < refArray.length; i++) {
+						for (int j = 0; j < refArray[0].length; j++) {
+							newArray[i][j] = refArray[i][j];
+						}
+					}
+					refArray = newArray;
+				}
+			}
 			Point checkPoint = new Point(x - rootPoint.x, y - rootPoint.y);
 			//new vertex
 			if(refArray[checkPoint.x][checkPoint.y] == null) {
-				Point newV = new Point(checkPoint.x, checkPoint.y);
+				Point newV = new Point(x, y);
 				myGraph.addVertex(newV);
 				refArray[checkPoint.x][checkPoint.y] = newV;
 
@@ -84,9 +82,7 @@ public class PathingGraph {
 		y1 -= rootPoint.y;
 		y2 -= rootPoint.y;
 		if(inBounds(x1, y1, true) && inBounds(x2, y2, true)) {
-			System.out.println("coderan");
 			if(refArray[x1][y1] != null && refArray[x2][y2] != null) {
-				System.out.println("more coderan");
 				return shorty.getPath(refArray[x1][y1], refArray[x2][y2]);
 			}
 		}
@@ -100,8 +96,8 @@ public class PathingGraph {
 			x += rootPoint.x;
 			y += rootPoint.y;
 		}
-		if(x >= rootPoint.x && x < rootPoint.x + (refArray.length - 1) && 
-				y >= rootPoint.y && y < rootPoint.y + (refArray[0].length - 1)){
+		if(x >= rootPoint.x && x < rootPoint.x + refArray.length && 
+				y >= rootPoint.y && y < rootPoint.y + refArray[0].length){
 			return true;
 		}
 		else return false;
