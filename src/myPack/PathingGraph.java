@@ -79,7 +79,7 @@ public class PathingGraph {
 								refArray[checkPoint.x - 1][checkPoint.y - 1] != null) {
 						realGraph.addEdge(refArray[checkPoint.x - 1][checkPoint.y], refArray[checkPoint.x][checkPoint.y - 1]);
 					}
-				}*/
+				}/**/
 			}
 		}
 		//if we're setting the point impassable (and it's within bounds)

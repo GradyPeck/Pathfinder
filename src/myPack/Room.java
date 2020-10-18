@@ -49,6 +49,7 @@ public class Room {
 	}
 	
 	//Door Handling Methods
+	//TODO rewrite these to get rid of unnecessary iterations
 	
 	//creates a new door from this room to a target room at an arbitrary location
 	//currently unused
@@ -113,7 +114,7 @@ public class Room {
 	}
 	
 	//changes the destination room of a door
-	public void rerouteDoor (Door d, Room destRoom) {
+	public void rerouteDoor (Door d, Room newRoom) {
 		ArrayList<Door> outerList = new ArrayList<Door>();
 		for (Room dest: doors.keySet()) {
 			ArrayList<Door> newList = new ArrayList<Door>();
@@ -121,6 +122,7 @@ public class Room {
 				if (dor.equals(d)) {
 					ArrayList<Door> current;
 					current = new ArrayList<Door>();
+					if(doors.get(newRoom) != null) current.addAll(doors.get(newRoom));
 					current.add(d);
 					outerList = current;
 				}
@@ -129,7 +131,7 @@ public class Room {
 			if(newList.containsAll(doors.get(dest)) == false) doors.put(dest, newList);
 		}
 		//this is here to avoid a ConcurrentModificationException
-		if(outerList.size() != 0) doors.put(destRoom, outerList);
+		if(outerList.size() != 0) doors.put(newRoom, outerList);
 	}
 	
 	//removes a door from this room without doing any other cleanup - used by deleteDoor

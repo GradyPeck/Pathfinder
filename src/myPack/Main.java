@@ -136,7 +136,7 @@ public class Main extends Application {
         			
 	        		if(tiles[poked.x][poked.y] != 1) {
 	        			if(sampleAdjacents(tiles, poked.x, poked.y).contains(2)) {
-	        				HashMap<Door, Room> doorsToRemove = findAdjDoors(tiles, poked.x, poked.y);
+	        				HashMap<Door, Room> doorsToRemove = findAdjDoors(poked.x, poked.y);
 	        				for(Door d: doorsToRemove.keySet()) {
 	        					doorsToRemove.get(d).deleteDoor(d);
 	        				}
@@ -445,31 +445,9 @@ public class Main extends Application {
 						
 						//try to add it to the pathingGraph
 						newGraph.setVertex(n, m, true);
+						//find doors adjacent to the newly found space
+						problemDoors.addAll(findAdjDoors(n, m).keySet());
 						
-						//and check orth-adjacent to it for doors
-						Point[] offsets = {new Point(0, 1), new Point(1, 0), new Point(0, -1), new Point(-1, 0)};
-						for (int k = 0; k < offsets.length; k++) {
-							int checkx = n + offsets[k].x;
-							int checky = m + offsets[k].y;
-							//avoid checking out of bounds - the weirdness is to cover the NEXT check, too
-							if(inBounds(checkx + offsets[k].x, checky + offsets[k].y, tiles)) {
-								if(tiles[checkx][checky] == 2) {
-									if(rooms.get(tiles[n][m]) != null) {
-	//Bear with me here.
-	//doorsToCheck is the list of doors owned by the room at the origin that lead to the room on the far side of the found door
-										ArrayList<Door> doorsToCheck = 
-												rooms.get(tiles[n][m]).doors.get(rooms.get(
-														tiles[checkx + offsets[k].x][checky + offsets[k].y]));
-										//finally grab the door in this room at that location
-										if(doorsToCheck != null) {
-											for(Door d: doorsToCheck) {
-												if(d.x == checkx && d.y == checky) problemDoors.add(d);
-											}
-										}
-									}
-								}
-							}
-						}
 					}
 				}
 			}
@@ -624,21 +602,25 @@ public class Main extends Application {
 		return found;
 	}
 	
-	public HashMap<Door, Room> findAdjDoors(int[][] grid, int x, int y) {
+	public HashMap<Door, Room> findAdjDoors(int x, int y) {
 		HashMap<Door, Room> myReturn = new HashMap<Door, Room>();
 		Point[] offsets = {new Point(0, 1), new Point(1, 0), new Point(0, -1), new Point(-1, 0)};
 		for (int i = 0; i < offsets.length; i++) {
 			int checkx = x + offsets[i].x;
 			int checky = y + offsets[i].y;
-			if (inBounds(checkx, checky, grid)) {
-				if (grid[checkx][checky] == 2) {
-					for (int index: rooms.keySet()) {
-						Door d = rooms.get(index).getDoorByLocation(checkx, checky);
-						if (d != null) {
-							myReturn.put(d, rooms.get(index));
-							break;
-						}
+			if (inBounds(checkx, checky, tiles)) {
+				if (tiles[checkx][checky] == 2) {
+					Door d = rooms.get(tiles[x][y]).getDoorByLocation(checkx, checky);
+					if (d != null) {
+						myReturn.put(d, rooms.get(tiles[x][y]));
 					}
+//					for (int index: rooms.keySet()) {
+//						Door d = rooms.get(index).getDoorByLocation(checkx, checky);
+//						if (d != null) {
+//							myReturn.put(d, rooms.get(index));
+//							break;
+//						}
+//					}
 				}
 			}
 		}
