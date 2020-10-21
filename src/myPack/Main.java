@@ -32,6 +32,9 @@ public class Main extends Application {
 	public MouseMode myMouse = MouseMode.WALL;
 	Point from = null;
 	boolean refresh = false;
+	boolean firstWall = true;
+	boolean firstDoor = true;
+	boolean firstPath = true;
 	
 	ArrayList<Point> myPoints = new ArrayList<Point>();
 
@@ -67,6 +70,7 @@ public class Main extends Application {
 		seedPoints.add(new Point(0, 0));
 		seedPoints.add(new Point(0, 1));
 		roomDetection(seedPoints);
+		pallette.put(100, Color.WHITE);
 		
 		new AnimationTimer()
         {
@@ -93,6 +97,22 @@ public class Main extends Application {
                 	}
                 	gc.setFill(Color.BLACK);
                 }
+            	if(firstWall && myMouse == MouseMode.WALL) {
+            		gc.setFill(Color.BLACK);
+            		gc.fillText("Left-click and drag to draw walls. Right-click and drag to erase walls.", 20, 20);
+            		firstWall = false;
+            	}
+            	if(firstDoor && myMouse == MouseMode.DOOR) {
+            		gc.setFill(Color.BLACK);
+            		gc.fillText("Click on a wall between rooms to make a door. Click on a door to remove it.", 20, 20);
+            		firstDoor = false;
+            	}
+            	if(firstPath && myMouse == MouseMode.PATH) {
+            		gc.setFill(Color.BLACK);
+            		gc.fillText("Click to place a starting point, then click elsewhere to place an ending point.", 
+            				20, 20);
+            		firstPath = false;
+            	}
             }
         }.start();
 		
@@ -259,6 +279,7 @@ public class Main extends Application {
 		for(int inty: rooms.keySet()) {
 			if(rooms.get(inty) != null) drawGraph(rooms.get(inty), gc);
 		}*/
+		
 		
 		border.setCenter(canvas);
 		root.getChildren().add(border);

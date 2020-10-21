@@ -212,7 +212,7 @@ public class Room {
 	//overload of removeDoor that avoids iteration - used by deleteDoor and tD and rrD overloads
 	public void removeDoor (Room dest, Door d) {
 		ArrayList<Door> destList = new ArrayList<Door>();
-		destList.addAll(doors.get(dest));
+		if(doors.get(dest) != null)destList.addAll(doors.get(dest));
 		destList.remove(d);
 		doors.put(dest, destList);
 		myGraph.setVertex(d.x, d.y, false);
