@@ -35,6 +35,15 @@ public class Room {
 		return myReturn;
 	}
 	
+	public void refreshGraph(PathingGraph graphIn) {
+		myGraph = graphIn;
+		for (Room r: doors.keySet()) {
+			for (Door d: doors.get(r)) {
+				myGraph.setVertex(d.x, d.y, true);
+			}
+		}
+	}
+	
 	public void refreshDoorPaths() {
 		for (Room r: doors.keySet()) {
 			for (Door d: doors.get(r)) {
@@ -47,6 +56,16 @@ public class Room {
 					}
 				}
 			}
+		}
+	}
+	
+	public void refreshNeighbors() {
+		ArrayList<Room> toWhack = new ArrayList<Room>();
+		for(Room r: doors.keySet()) {
+			if(doors.get(r).size() == 0) toWhack.add(r);
+		}
+		for(int i = toWhack.size() - 1; i >= 0; i--) {
+			doors.remove(toWhack.get(i));
 		}
 	}
 	
@@ -116,7 +135,7 @@ public class Room {
 		}
 	}
 	
-	//changes the destination room of a door
+	//changes the destination room of a door - used by transferDoor
 	public void rerouteDoor (Door d, Room newRoom) {
 		ArrayList<Door> outerList = new ArrayList<Door>();
 		for (Room dest: doors.keySet()) {
@@ -170,17 +189,6 @@ public class Room {
 		}
 		myGraph.setVertex(d.x, d.y, false);
 		refreshNeighbors();
-	}
-	
-	
-	public void refreshNeighbors() {
-		ArrayList<Room> toWhack = new ArrayList<Room>();
-		for(Room r: doors.keySet()) {
-			if(doors.get(r).size() == 0) toWhack.add(r);
-		}
-		for(int i = toWhack.size() - 1; i >= 0; i--) {
-			doors.remove(toWhack.get(i));
-		}
 	}
 	
 	//Constructor Stuff

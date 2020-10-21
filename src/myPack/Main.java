@@ -14,7 +14,6 @@ import javafx.scene.canvas.*;
 import javafx.scene.control.Button;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
@@ -32,7 +31,6 @@ public class Main extends Application {
 	}
 	public MouseMode myMouse = MouseMode.WALL;
 	Point from = null;
-	Point to = null;
 	boolean refresh = false;
 	
 	ArrayList<Point> myPoints = new ArrayList<Point>();
@@ -62,6 +60,13 @@ public class Main extends Application {
 				}
 			}
 		}
+		
+		//TODO make a better solution for the outer space
+		//workaround to make the initial space become a room
+		ArrayList<Point> seedPoints = new ArrayList<Point>();
+		seedPoints.add(new Point(0, 0));
+		seedPoints.add(new Point(0, 1));
+		roomDetection(seedPoints);
 		
 		new AnimationTimer()
         {
@@ -171,9 +176,11 @@ public class Main extends Application {
 		
 		canvas.setOnMouseClicked(new EventHandler<MouseEvent>() {
         	public void handle(MouseEvent e) {
+        		if(e.isShiftDown()) pathBarrage(50, gc);
         		Point poked = new Point(Math.min((int) (e.getX()/10), 49), Math.min((int) (e.getY()/10), 49));
         		//shift-click on a wall between rooms to place doors
         		if(myMouse == MouseMode.DOOR) {
+        			//turn wall into door (if possible)
 	        		if(tiles[poked.x][poked.y] == 1) {
 	        			int above;
 	        			if(inBounds(poked.x, poked.y + 1, tiles)) above = tiles[poked.x][poked.y + 1];
@@ -195,6 +202,7 @@ public class Main extends Application {
 	        				rooms.get(above).createDoor(rooms.get(below), poked.x, poked.y);
 	        			}
 	        		}
+	        		//turn door back into wall
 	        		else if(tiles[poked.x][poked.y] == 2) {
 	        			HashMap<Door, Room> toWhack = getDoorsByLoc(poked.x, poked.y);
 	        			for (Door d: toWhack.keySet()) {
@@ -225,27 +233,15 @@ public class Main extends Application {
         				if(from == null) {
         					from = poked;
         					//System.out.println("From set");
-        					gc.setFill(Color.RED);
+        					gc.setFill(Color.LIME);
         					gc.fillOval(poked.x*10 + 3, poked.y*10 + 3, 4, 4);
+        					gc.setFill(Color.BLACK);
         				}
-        				else if(to == null) {
-    						to = poked;
+        				else {
+    						//to = poked;
         					//System.out.println("To set");
-        					Path pathy = findPath(from, to);
-        					if(pathy != null) {
-	    						gc.setStroke(Color.RED);
-	        					for (int i = 0; i < pathy.points.size() - 1; i++) {
-	        						gc.strokeLine(pathy.points.get(i).x*10 + 5, pathy.points.get(i).y*10 + 5, 
-	        								pathy.points.get(i + 1).x*10 + 5, pathy.points.get(i + 1).y*10 + 5);
-	        					}
-	        					gc.setStroke(Color.BLACK);
-        					}
-    					}
-    					else {
-    						from = null;
-    						to = null;
-//    						refresh = true;
-        					//System.out.println("Reset");
+        					drawPath(from, poked, gc);
+        					from = null;
     					}
         			}
         		}
@@ -253,39 +249,15 @@ public class Main extends Application {
         });
 
 		//finishing up Start method
-		Button buttx = new Button("Wall");
-		Button butty = new Button("Door");
-		Button buttz = new Button("Path");
-		Button butta = new Button("Graph");
-		buttx.setOnAction(new EventHandler<ActionEvent>() {
-			public void handle(ActionEvent e) {
-				myMouse = MouseMode.WALL;
-				refresh = true;
-			}
-		});
-		butty.setOnAction(new EventHandler<ActionEvent>() {
-			public void handle(ActionEvent e) {
-				myMouse = MouseMode.DOOR;
-				refresh = true;
-			}
-		});
-		buttz.setOnAction(new EventHandler<ActionEvent>() {
-			public void handle(ActionEvent e) {
-				myMouse = MouseMode.PATH;
-			}
-		});
-		butta.setOnAction(new EventHandler<ActionEvent>() {
-			public void handle(ActionEvent e) {
-				for(int inty: rooms.keySet()) {
-					if(rooms.get(inty) != null) drawGraph(rooms.get(inty), gc);
-				}
-			}
-		});
+		addModeButton("Wall", MouseMode.WALL, vbox);
+		addModeButton("Door", MouseMode.DOOR, vbox);
+		addModeButton("Path", MouseMode.PATH, vbox);
+		/*code for if you bring the graph all button back
+		for(int inty: rooms.keySet()) {
+			if(rooms.get(inty) != null) drawGraph(rooms.get(inty), gc);
+		}*/
+		
 		border.setCenter(canvas);
-		vbox.getChildren().add(buttx);
-		vbox.getChildren().add(butty);
-		vbox.getChildren().add(buttz);
-		vbox.getChildren().add(butta);
 		root.getChildren().add(border);
 		stage.setScene(scene);
 		stage.show();
@@ -488,85 +460,57 @@ public class Main extends Application {
 			
 			//decide what our result type is for this pulse
 			
-			//if you only found one type of tile
-			if(tfNow.size() == 1) {
-				//if you only found open space
-				if(tfNow.contains(0)) {
+			//purge empty space (0) from the found types to simplify decisions
+			for(int q = tfNow.size() - 1; q >= 0; q--) {
+				if(tfNow.get(q) == 0) tfNow.remove(q);
+			}
+			
+			//if you only found open space
+			if(tfNow.size() == 0) {
+				//create a new room
+				Room newRoom = new Room(newGraph);
+				replaceTiles(tilesfound, 1, newRoom.id);
+			}
+			//if you only found one room (potentially plus empty space)...
+			else if(tfNow.size() == 1) {
+				int chosenRoom = tfNow.get(0);
+				//...and this room has been found already
+				if(typesfound.contains(chosenRoom)) {
+					//ROOM SPLITTING
 					//create a new room
 					Room newRoom = new Room(newGraph);
 					replaceTiles(tilesfound, 1, newRoom.id);
+					//transfer all relevant doors
+					for(Door d: problemDoors) {
+						rooms.get(chosenRoom).transferDoor(d, newRoom);
+					}
 				}
-				//if you only found one room
-				else if(!tfNow.contains(0)) {
-					//if this room has been found already
-					if(typesfound.contains(tfNow.get(0))) {
-						//room splitting
-						
-						//create a new room
-						Room newRoom = new Room(newGraph);
-						replaceTiles(tilesfound, 1, newRoom.id);
-						//transfer all relevant doors
-						for(Door d: problemDoors) {
-							rooms.get(tfNow.get(0)).transferDoor(d, newRoom);
-						}
-					}
-					//if this room hasn't been found already
-					else {
-						//just use it
-						Room roomy = rooms.get(tfNow.get(0));
-						roomy.myGraph = newGraph;
-						for (Room r: roomy.doors.keySet()) {
-							for (Door d: roomy.doors.get(r)) {
-								roomy.myGraph.setVertex(d.x, d.y, true);
-							}
-						}
-						replaceTiles(tilesfound, 1, tfNow.get(0));
-					}
+				//...and this room hasn't been found already
+				else {
+					//just use it
+					Room roomy = rooms.get(chosenRoom);
+					roomy.refreshGraph(newGraph);
+					replaceTiles(tilesfound, 1, chosenRoom);
 				}
 			}
-			
-			//if we found more than one type, ie because a wall was removed
+			//if we found more than one room (potentially plus empty space)
 			else {
-				//if we only found one room plus empty space
-				if(tfNow.size() == 2 && tfNow.contains(0)) {
-					//just use the room
-					int chosenRoom;
-					if(tfNow.indexOf(0) == 0) chosenRoom = tfNow.get(1);
-					else chosenRoom = tfNow.get(0);
-					Room roomy = rooms.get(chosenRoom);
-					roomy.myGraph = newGraph;		
-					for (Room r: roomy.doors.keySet()) {
-						for (Door d: roomy.doors.get(r)) {
-							roomy.myGraph.setVertex(d.x, d.y, true);
-						}
-					}
-					replaceTiles(tilesfound, 1, chosenRoom);
-				}
-				//if we found more than one room (potentially plus empty space)
-				else {
-					//migrate problem doors to the surviving room
-					//now-internal doors are automatically deleted by Room.transferDoor()
-					int chosenRoom;
-					if(tfNow.indexOf(0) == 0) chosenRoom = tfNow.get(1);
-					else chosenRoom = tfNow.get(0);
-					Room roomy = rooms.get(chosenRoom);
-					roomy.myGraph = newGraph;		
-					for (Room r: roomy.doors.keySet()) {
-						for (Door d: roomy.doors.get(r)) {
-							roomy.myGraph.setVertex(d.x, d.y, true);
-						}
-					}
-					replaceTiles(tilesfound, 1, chosenRoom);
-					for(int tiletype: tfNow) {
-						if(tiletype != 0 && tiletype != chosenRoom) {
-							rooms.get(tiletype).transferAllDoors(rooms.get(chosenRoom));
-						}
+				//ROOM MERGING
+				//migrate all doors from other rooms to the surviving room
+				//now-internal doors are automatically deleted by Room.transferDoor()
+				int chosenRoom = tfNow.get(0);
+				Room roomy = rooms.get(chosenRoom);
+				roomy.refreshGraph(newGraph);
+				replaceTiles(tilesfound, 1, chosenRoom);
+				for(int tiletype: tfNow) {
+					if(tiletype != chosenRoom && rooms.get(tiletype) != null) {
+						rooms.get(tiletype).transferAllDoors(rooms.get(chosenRoom));
 					}
 				}
 			}
 			typesfound.addAll(tfNow);
 		}
-		//write tilesfound into tiles. This can probably be refactored. 
+		//write tilesfound into tiles.
 		for(int i = 0; i < tiles.length; i++) {
 			for (int z = 0; z < tiles[0].length; z++) {
 				if(tilesfound[i][z] != -1) tiles[i][z] = tilesfound[i][z];
@@ -696,6 +640,48 @@ public class Main extends Application {
 	public static boolean inBounds(int x, int y, int[][] grid) {
 		if(x >= 0 && y >= 0 && x < grid.length && y < grid[0].length) return true;
 		else return false;
+	}
+
+	public void addModeButton(String name, MouseMode mode, VBox addto) {
+		Button buttx = new Button(name);
+		buttx.setPrefSize(50, 20);
+		buttx.setOnAction(new EventHandler<ActionEvent>() {
+			public void handle(ActionEvent e) {
+				myMouse = mode;
+				refresh = true;
+			}
+		});
+		addto.getChildren().add(buttx);
+	}
+
+	public void drawPath(Point from, Point to, GraphicsContext gc) {
+		Path pathy = findPath(from, to);
+		gc.setFill(Color.RED);
+		gc.fillOval(to.x*10 + 3, to.y*10 + 3, 4, 4);
+		gc.setFill(Color.BLACK);
+		if(pathy != null) {
+			gc.setStroke(Color.RED);
+			for (int i = 0; i < pathy.points.size() - 1; i++) {
+				gc.strokeLine(pathy.points.get(i).x*10 + 5, pathy.points.get(i).y*10 + 5, 
+						pathy.points.get(i + 1).x*10 + 5, pathy.points.get(i + 1).y*10 + 5);
+			}
+			gc.setStroke(Color.BLACK);
+		}
+		gc.setFill(Color.LIME);
+		gc.fillOval(from.x*10 + 3, from.y*10 + 3, 4, 4);
+		gc.setFill(Color.BLACK);
+	}
+
+	public void pathBarrage(int size, GraphicsContext gc) {
+		for(int i = 0; i < size; i++) {
+			int fx = rand.nextInt(tiles.length);
+			int fy = rand.nextInt(tiles[0].length);
+			Point from = new Point(fx, fy);
+			int tx = rand.nextInt(tiles.length);
+			int ty = rand.nextInt(tiles[0].length);
+			Point to = new Point(tx, ty);
+			drawPath(to, from, gc);
+		}
 	}
 
 }
