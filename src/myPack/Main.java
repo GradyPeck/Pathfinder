@@ -7,10 +7,15 @@ import java.util.Random;
 
 import javafx.animation.AnimationTimer;
 import javafx.application.Application;
+import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.scene.*;
 import javafx.scene.canvas.*;
+import javafx.scene.control.Button;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 
@@ -22,6 +27,10 @@ public class Main extends Application {
 	static ArrayList<Point> changedTiles = new ArrayList<Point>();
 	static HashMap<Integer, Color> pallette = new HashMap<Integer, Color>();
 	static Random rand = new Random();
+	public enum MouseMode {
+		WALL, DOOR, PATH
+	}
+	public MouseMode myMouse = MouseMode.WALL;
 	Point from = null;
 	Point to = null;
 	boolean refresh = false;
@@ -38,8 +47,11 @@ public class Main extends Application {
 
 	@Override
 	public void start(Stage stage) throws Exception {
+		BorderPane border = new BorderPane();
+		VBox vbox = new VBox();
+		border.setLeft(vbox);
 		Group root = new Group();
-		Scene scene = new Scene(root, fieldSize * 10, fieldSize * 10, Color.WHITE);
+		Scene scene = new Scene(root, fieldSize * 10 + 50, fieldSize * 10, Color.WHITE);
 		Canvas canvas = new Canvas(fieldSize * 10, fieldSize * 10);
 		GraphicsContext gc = canvas.getGraphicsContext2D();
 		//draw initial state, based on tiles
@@ -80,85 +92,88 @@ public class Main extends Application {
         }.start();
 		
 		//input events
-		scene.setOnMouseDragged(new EventHandler<MouseEvent>() {
+		canvas.setOnMouseDragged(new EventHandler<MouseEvent>() {
         	public void handle(MouseEvent e) {
+        		if(myMouse != MouseMode.WALL) return;
         		Point poked = new Point(Math.min((int) (e.getX()/10), 49), Math.min((int) (e.getY()/10), 49));
-        		if(e.isSecondaryButtonDown()) {
-        			//if it's a wall...
-        			if(tiles[poked.x][poked.y] == 1) {
-        				ArrayList<Integer> neighbors = sampleAdjacents(tiles, poked.x, poked.y);
-        				//if there's exactly one type adjacent...
-        				if(neighbors.size() == 1) {
-        					//and it's wall, make it a new room
-        					if(neighbors.get(0) == 1) {
-        						tiles[poked.x][poked.y] = new Room(poked.x, poked.y).id;
-        					}
-        					//and it's not wall, make it that
-        					else {
-        						Room roomy = rooms.get(neighbors.get(0));
-        	        			if(roomy != null) {
-        	        				roomy.myGraph.setVertex(poked.x, poked.y, true);
-        	        			}
-        	        			tiles[poked.x][poked.y] = neighbors.get(0);
-        					}
-        				}
-        				//if there are exactly two and one is wall, set it to the other one
-        				else if(neighbors.size() == 2 && neighbors.contains(1)) {
-        					if(neighbors.indexOf(1) == 0) {
-        						Room roomy = rooms.get(neighbors.get(1));
-        	        			if(roomy != null) {
-        	        				roomy.myGraph.setVertex(poked.x, poked.y, true);
-        	        			}
-        	        			tiles[poked.x][poked.y] = neighbors.get(1);
-        					}
-        					else {
-        						Room roomy = rooms.get(neighbors.get(0));
-        	        			if(roomy != null) {
-        	        				roomy.myGraph.setVertex(poked.x, poked.y, true);
-        	        			}
-        	        			tiles[poked.x][poked.y] = neighbors.get(0);
-        					}
-        				}
-        				else {
-        					ArrayList<Point> checks = RDpreCheck(poked.x, poked.y);
-        					if (checks.size() == 1) {
-            					tiles[poked.x][poked.y] = tiles[checks.get(0).x][checks.get(0).y];
-        					}
-        					else {
-	        					tiles[poked.x][poked.y] = 0;
-	        					roomDetection(checks);
-        					}
-        				}
-        				changedTiles.add(poked);
-        			}
-        		}
-        		else if(e.isPrimaryButtonDown()) {
-        			
-	        		if(tiles[poked.x][poked.y] != 1) {
-	        			if(sampleAdjacents(tiles, poked.x, poked.y).contains(2)) {
-	        				HashMap<Door, Room> doorsToRemove = findAdjDoors(poked.x, poked.y);
-	        				for(Door d: doorsToRemove.keySet()) {
-	        					doorsToRemove.get(d).deleteDoor(d);
+        		if(inBounds(poked.x, poked.y, tiles)) {
+	        		if(e.isSecondaryButtonDown()) {
+	        			//if it's a wall...
+	        			if(tiles[poked.x][poked.y] == 1) {
+	        				ArrayList<Integer> neighbors = sampleAdjacents(tiles, poked.x, poked.y);
+	        				//if there's exactly one type adjacent...
+	        				if(neighbors.size() == 1) {
+	        					//and it's wall, make it a new room
+	        					if(neighbors.get(0) == 1) {
+	        						tiles[poked.x][poked.y] = new Room(poked.x, poked.y).id;
+	        					}
+	        					//and it's not wall, make it that
+	        					else {
+	        						Room roomy = rooms.get(neighbors.get(0));
+	        	        			if(roomy != null) {
+	        	        				roomy.myGraph.setVertex(poked.x, poked.y, true);
+	        	        			}
+	        	        			tiles[poked.x][poked.y] = neighbors.get(0);
+	        					}
 	        				}
-		        		}
-	        			Room roomy = rooms.get(tiles[poked.x][poked.y]);
-	        			if(roomy != null) {
-	        				roomy.myGraph.setVertex(poked.x, poked.y, false);
+	        				//if there are exactly two and one is wall, set it to the other one
+	        				else if(neighbors.size() == 2 && neighbors.contains(1)) {
+	        					if(neighbors.indexOf(1) == 0) {
+	        						Room roomy = rooms.get(neighbors.get(1));
+	        	        			if(roomy != null) {
+	        	        				roomy.myGraph.setVertex(poked.x, poked.y, true);
+	        	        			}
+	        	        			tiles[poked.x][poked.y] = neighbors.get(1);
+	        					}
+	        					else {
+	        						Room roomy = rooms.get(neighbors.get(0));
+	        	        			if(roomy != null) {
+	        	        				roomy.myGraph.setVertex(poked.x, poked.y, true);
+	        	        			}
+	        	        			tiles[poked.x][poked.y] = neighbors.get(0);
+	        					}
+	        				}
+	        				else {
+	        					ArrayList<Point> checks = RDpreCheck(poked.x, poked.y);
+	        					if (checks.size() == 1) {
+	            					tiles[poked.x][poked.y] = tiles[checks.get(0).x][checks.get(0).y];
+	        					}
+	        					else {
+		        					tiles[poked.x][poked.y] = 0;
+		        					roomDetection(checks);
+	        					}
+	        				}
+	        				changedTiles.add(poked);
 	        			}
-		        		tiles[poked.x][poked.y] = 1;
-		        		changedTiles.add(poked);
-		        		
-		        		roomDetection(RDpreCheck(poked.x, poked.y));
+	        		}
+	        		else if(e.isPrimaryButtonDown()) {
+	        			
+		        		if(tiles[poked.x][poked.y] != 1) {
+		        			if(sampleAdjacents(tiles, poked.x, poked.y).contains(2)) {
+		        				HashMap<Door, Room> doorsToRemove = findAdjDoors(poked.x, poked.y);
+		        				for(Door d: doorsToRemove.keySet()) {
+		        					doorsToRemove.get(d).deleteDoor(d);
+		        				}
+			        		}
+		        			Room roomy = rooms.get(tiles[poked.x][poked.y]);
+		        			if(roomy != null) {
+		        				roomy.myGraph.setVertex(poked.x, poked.y, false);
+		        			}
+			        		tiles[poked.x][poked.y] = 1;
+			        		changedTiles.add(poked);
+			        		
+			        		roomDetection(RDpreCheck(poked.x, poked.y));
+		        		}
 	        		}
         		}
         	}
         });
 		
-		scene.setOnMouseClicked(new EventHandler<MouseEvent>() {
+		canvas.setOnMouseClicked(new EventHandler<MouseEvent>() {
         	public void handle(MouseEvent e) {
         		Point poked = new Point(Math.min((int) (e.getX()/10), 49), Math.min((int) (e.getY()/10), 49));
         		//shift-click on a wall between rooms to place doors
-        		if(e.isShiftDown()) {
+        		if(myMouse == MouseMode.DOOR) {
 	        		if(tiles[poked.x][poked.y] == 1) {
 	        			int above;
 	        			if(inBounds(poked.x, poked.y + 1, tiles)) above = tiles[poked.x][poked.y + 1];
@@ -180,30 +195,14 @@ public class Main extends Application {
 	        				rooms.get(above).createDoor(rooms.get(below), poked.x, poked.y);
 	        			}
 	        		}
-        			//test code that maps out a room's graph when you shift click on it
-        			if(tiles[poked.x][poked.y] > 99) {
-	        			Room roomy = rooms.get(tiles[poked.x][poked.y]);
-	        			for (int i = 0; i < roomy.myGraph.refArray.length; i++) {
-	        				for (int j = 0; j < roomy.myGraph.refArray[0].length; j++) {
-	        					if(roomy.myGraph.refArray[i][j] != null) {
-	        						Point[] offsets = {new Point(0, 1), new Point(0, -1), new Point(1, 0), new Point(-1, 0),
-	        								new Point(1, 1), new Point(1, -1), new Point(-1, 1), new Point(-1, -1)
-	        								};
-	        						for (int k = 0; k < offsets.length; k++) {
-	        							int checkx = i + offsets[k].x;
-	        							int checky = j + offsets[k].y;
-	        							if(roomy.myGraph.inBounds(checkx, checky, true) && roomy.myGraph.refArray[checkx][checky] != null) {
-	        								if(roomy.myGraph.realGraph.getEdge(roomy.myGraph.refArray[i][j], 
-	        										roomy.myGraph.refArray[checkx][checky]) != null) {
-	        									gc.strokeLine(i*10 + roomy.myGraph.rootPoint.x*10 + 5, j*10 + roomy.myGraph.rootPoint.y*10 + 5,
-	        											checkx*10 + roomy.myGraph.rootPoint.x*10 + 5, checky*10 + roomy.myGraph.rootPoint.y*10 + 5);
-	        								}
-	        							}
-	        						}
-	        					}
-	        				}
+	        		else if(tiles[poked.x][poked.y] == 2) {
+	        			HashMap<Door, Room> toWhack = getDoorsByLoc(poked.x, poked.y);
+	        			for (Door d: toWhack.keySet()) {
+	        				Room roombert = toWhack.get(d);
+	        				if(roombert != null) toWhack.get(d).deleteDoor(d);
 	        			}
-        			}
+	        		}
+        			
         			//test code that maps out a room's door-paths when you shift click on it
 //	        		if(tiles[poked.x][poked.y] > 99) {
 //	        			Room roomy = rooms.get(tiles[poked.x][poked.y]);
@@ -219,28 +218,34 @@ public class Main extends Application {
 //        			}
 	        		
         		}
-        		//test code that triggers pathfinding between two alt-clicks
-        		else if(e.isAltDown()) {
+        		//test code that triggers pathfinding between two clicks
+        		else if(myMouse == MouseMode.PATH) {
         			int idfound = tiles[poked.x][poked.y];
         			if(idfound > 99) {
         				if(from == null) {
         					from = poked;
-        					System.out.println("From set");
+        					//System.out.println("From set");
+        					gc.setFill(Color.RED);
+        					gc.fillOval(poked.x*10 + 3, poked.y*10 + 3, 4, 4);
         				}
         				else if(to == null) {
     						to = poked;
-        					System.out.println("To set");
+        					//System.out.println("To set");
         					Path pathy = findPath(from, to);
-        					for (int i = 0; i < pathy.points.size() - 1; i++) {
-        						gc.strokeLine(pathy.points.get(i).x*10 + 5, pathy.points.get(i).y*10 + 5, 
-        								pathy.points.get(i + 1).x*10 + 5, pathy.points.get(i + 1).y*10 + 5);
+        					if(pathy != null) {
+	    						gc.setStroke(Color.RED);
+	        					for (int i = 0; i < pathy.points.size() - 1; i++) {
+	        						gc.strokeLine(pathy.points.get(i).x*10 + 5, pathy.points.get(i).y*10 + 5, 
+	        								pathy.points.get(i + 1).x*10 + 5, pathy.points.get(i + 1).y*10 + 5);
+	        					}
+	        					gc.setStroke(Color.BLACK);
         					}
     					}
     					else {
     						from = null;
     						to = null;
-    						refresh = true;
-        					System.out.println("Reset");
+//    						refresh = true;
+        					//System.out.println("Reset");
     					}
         			}
         		}
@@ -248,7 +253,40 @@ public class Main extends Application {
         });
 
 		//finishing up Start method
-		root.getChildren().add(canvas);
+		Button buttx = new Button("Wall");
+		Button butty = new Button("Door");
+		Button buttz = new Button("Path");
+		Button butta = new Button("Graph");
+		buttx.setOnAction(new EventHandler<ActionEvent>() {
+			public void handle(ActionEvent e) {
+				myMouse = MouseMode.WALL;
+				refresh = true;
+			}
+		});
+		butty.setOnAction(new EventHandler<ActionEvent>() {
+			public void handle(ActionEvent e) {
+				myMouse = MouseMode.DOOR;
+				refresh = true;
+			}
+		});
+		buttz.setOnAction(new EventHandler<ActionEvent>() {
+			public void handle(ActionEvent e) {
+				myMouse = MouseMode.PATH;
+			}
+		});
+		butta.setOnAction(new EventHandler<ActionEvent>() {
+			public void handle(ActionEvent e) {
+				for(int inty: rooms.keySet()) {
+					if(rooms.get(inty) != null) drawGraph(rooms.get(inty), gc);
+				}
+			}
+		});
+		border.setCenter(canvas);
+		vbox.getChildren().add(buttx);
+		vbox.getChildren().add(butty);
+		vbox.getChildren().add(buttz);
+		vbox.getChildren().add(butta);
+		root.getChildren().add(border);
 		stage.setScene(scene);
 		stage.show();
 	}
@@ -263,13 +301,8 @@ public class Main extends Application {
 		ArrayList <Room> fromAsAL = new ArrayList<Room>();
 		fromAsAL.add(initialRoom);
 		ArrayList<ArrayList<Room>> protopaths = seekRoom(fromAsAL, finalRoom);
-//		Uncomment this to print the room-paths to the console
-//		for(ArrayList<Room> listy : protopaths) {
-//			System.out.println("Path Start");
-//			for (Room r : listy) {
-//				System.out.println(r.id);
-//			}
-//		}
+		if(protopaths.size() == 0) return null;
+		
 		//find the door-paths connecting the two rooms
 		ArrayList<ArrayList<Door>> Adoorpaths = new ArrayList<ArrayList<Door>>();
 		for(ArrayList<Room> listy : protopaths) {
@@ -299,6 +332,7 @@ public class Main extends Application {
 			}
 			Adoorpaths.addAll(doorpaths);
 		}
+		
 		//find the specific path
 		HashMap<Door, Path> escapes = new HashMap<Door, Path>();
 		HashMap<Door, Path> arrivals = new HashMap<Door, Path>();
@@ -490,6 +524,7 @@ public class Main extends Application {
 					}
 				}
 			}
+			
 			//if we found more than one type, ie because a wall was removed
 			else {
 				//if we only found one room plus empty space
@@ -608,24 +643,54 @@ public class Main extends Application {
 		for (int i = 0; i < offsets.length; i++) {
 			int checkx = x + offsets[i].x;
 			int checky = y + offsets[i].y;
-			if (inBounds(checkx, checky, tiles)) {
-				if (tiles[checkx][checky] == 2) {
-					Door d = rooms.get(tiles[x][y]).getDoorByLocation(checkx, checky);
-					if (d != null) {
-						myReturn.put(d, rooms.get(tiles[x][y]));
-					}
-//					for (int index: rooms.keySet()) {
-//						Door d = rooms.get(index).getDoorByLocation(checkx, checky);
-//						if (d != null) {
-//							myReturn.put(d, rooms.get(index));
-//							break;
-//						}
-//					}
-				}
-			}
+//			if(rooms.get(tiles[x][y]) != null) {
+//				Door d = rooms.get(tiles[x][y]).getDoorByLocation(x, y);
+//				if (d != null) myReturn.put(d, rooms.get(tiles[x][y]));
+//			}
+			myReturn.putAll(getDoorsByLoc(checkx, checky));
 		}
 		
 		return myReturn;
+	}
+	
+	public HashMap<Door, Room> getDoorsByLoc(int x, int y) {
+		HashMap<Door, Room> myReturn = new HashMap<Door, Room>();
+		if (inBounds(x, y, tiles)) {
+			if (tiles[x][y] == 2) {
+				ArrayList<Integer> toCheck = sampleAdjacents(tiles, x, y);
+				for(int inty: toCheck) {
+					if(rooms.get(inty) != null) {
+						Door d = rooms.get(inty).getDoorByLocation(x, y);
+						if (d != null) myReturn.put(d, rooms.get(inty));
+					}
+				}
+			}
+		}
+		return myReturn;
+	}
+	
+	//test code that maps out a room's graph when you click on it
+	public void drawGraph(Room roomy, GraphicsContext gc) {
+		for (int i = 0; i < roomy.myGraph.refArray.length; i++) {
+			for (int j = 0; j < roomy.myGraph.refArray[0].length; j++) {
+				if(roomy.myGraph.refArray[i][j] != null) {
+					Point[] offsets = {new Point(0, 1), new Point(0, -1), new Point(1, 0), new Point(-1, 0),
+							new Point(1, 1), new Point(1, -1), new Point(-1, 1), new Point(-1, -1)
+							};
+					for (int k = 0; k < offsets.length; k++) {
+						int checkx = i + offsets[k].x;
+						int checky = j + offsets[k].y;
+						if(roomy.myGraph.inBounds(checkx, checky, true) && roomy.myGraph.refArray[checkx][checky] != null) {
+							if(roomy.myGraph.realGraph.getEdge(roomy.myGraph.refArray[i][j], 
+									roomy.myGraph.refArray[checkx][checky]) != null) {
+								gc.strokeLine(i*10 + roomy.myGraph.rootPoint.x*10 + 5, j*10 + roomy.myGraph.rootPoint.y*10 + 5,
+										checkx*10 + roomy.myGraph.rootPoint.x*10 + 5, checky*10 + roomy.myGraph.rootPoint.y*10 + 5);
+							}
+						}
+					}
+				}
+			}
+		}
 	}
 	
 	public static boolean inBounds(int x, int y, int[][] grid) {

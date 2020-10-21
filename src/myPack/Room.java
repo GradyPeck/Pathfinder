@@ -16,6 +16,7 @@ public class Room {
 	public int id;
 	public Color chroma;
 	
+	//returns a door object at these global coordinates, if owned by this room
 	public Door getDoorByLocation(int x, int y) {
 		for (Room r: doors.keySet()) {
 			for (Door d: doors.get(r)) {
@@ -26,10 +27,11 @@ public class Room {
 	}
 	
 	//requests a path between the target coordinates
-	//TODO make this more robust (eg to invalid coordinates), make it return a Path object
 	public Path getPath(int x1, int y1, int x2, int y2) {
 		GraphPath<Point, DefaultEdge> gp = myGraph.getPath(x1, y1, x2, y2);
-		Path myReturn = new Path(gp.getLength(), gp.getVertexList());
+		Path myReturn;
+		if(gp != null) myReturn = new Path(gp.getLength(), gp.getVertexList());
+		else myReturn = null;
 		return myReturn;
 	}
 	
@@ -101,6 +103,7 @@ public class Room {
 			}
 			if(newList.containsAll(doors.get(dest)) == false) doors.put(dest, newList);
 		}
+		refreshNeighbors();
 		myGraph.setVertex(d.x, d.y, false);
 		newRoom.refreshDoorPaths();
 	}
@@ -144,6 +147,7 @@ public class Room {
 			if(newList.containsAll(doors.get(dest)) == false) doors.put(dest, newList);
 		}
 		myGraph.setVertex(d.x, d.y, false);
+		refreshNeighbors();
 	}
 	
 	//initiates the full process of deleting and cleaning up a door
@@ -165,6 +169,18 @@ public class Room {
 			if(newList.containsAll(doors.get(dest)) == false) doors.put(dest, newList);
 		}
 		myGraph.setVertex(d.x, d.y, false);
+		refreshNeighbors();
+	}
+	
+	
+	public void refreshNeighbors() {
+		ArrayList<Room> toWhack = new ArrayList<Room>();
+		for(Room r: doors.keySet()) {
+			if(doors.get(r).size() == 0) toWhack.add(r);
+		}
+		for(int i = toWhack.size() - 1; i >= 0; i--) {
+			doors.remove(toWhack.get(i));
+		}
 	}
 	
 	//Constructor Stuff
