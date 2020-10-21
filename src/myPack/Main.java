@@ -176,7 +176,6 @@ public class Main extends Application {
 		
 		canvas.setOnMouseClicked(new EventHandler<MouseEvent>() {
         	public void handle(MouseEvent e) {
-        		if(e.isShiftDown()) pathBarrage(50, gc);
         		Point poked = new Point(Math.min((int) (e.getX()/10), 49), Math.min((int) (e.getY()/10), 49));
         		//shift-click on a wall between rooms to place doors
         		if(myMouse == MouseMode.DOOR) {
@@ -228,21 +227,24 @@ public class Main extends Application {
         		}
         		//test code that triggers pathfinding between two clicks
         		else if(myMouse == MouseMode.PATH) {
-        			int idfound = tiles[poked.x][poked.y];
-        			if(idfound > 99) {
-        				if(from == null) {
-        					from = poked;
-        					//System.out.println("From set");
-        					gc.setFill(Color.LIME);
-        					gc.fillOval(poked.x*10 + 3, poked.y*10 + 3, 4, 4);
-        					gc.setFill(Color.BLACK);
-        				}
-        				else {
-    						//to = poked;
-        					//System.out.println("To set");
-        					drawPath(from, poked, gc);
-        					from = null;
-    					}
+        			if(e.isShiftDown()) pathBarrage(50, gc);
+        			else {
+	        			int idfound = tiles[poked.x][poked.y];
+	        			if(idfound > 99) {
+	        				if(from == null) {
+	        					from = poked;
+	        					//System.out.println("From set");
+	        					gc.setFill(Color.LIME);
+	        					gc.fillOval(poked.x*10 + 3, poked.y*10 + 3, 4, 4);
+	        					gc.setFill(Color.BLACK);
+	        				}
+	        				else {
+	    						//to = poked;
+	        					//System.out.println("To set");
+	        					drawPath(from, poked, gc);
+	        					from = null;
+	    					}
+	        			}
         			}
         		}
         	}
@@ -250,6 +252,7 @@ public class Main extends Application {
 
 		//finishing up Start method
 		addModeButton("Wall", MouseMode.WALL, vbox);
+		vbox.getChildren().get(0).setStyle("-fx-color: #00ccff; ");
 		addModeButton("Door", MouseMode.DOOR, vbox);
 		addModeButton("Path", MouseMode.PATH, vbox);
 		/*code for if you bring the graph all button back
@@ -520,7 +523,7 @@ public class Main extends Application {
 	}
 	
 	//recursive method used in room detection
-	//return is a list of all the distinct tile contents found (excluding walls)
+	//return is a list of all the distinct tile contents found (excluding walls and doors)
 	public ArrayList<Integer> rdPulse (Point origin, int[][] tilesfound) {
 		ArrayList<Integer> myReturn = new ArrayList<Integer>();
 		//step through all tiles adjacent to the origin (including diagonal)
@@ -583,7 +586,7 @@ public class Main extends Application {
 	
 	public HashMap<Door, Room> findAdjDoors(int x, int y) {
 		HashMap<Door, Room> myReturn = new HashMap<Door, Room>();
-		Point[] offsets = {new Point(0, 1), new Point(1, 0), new Point(0, -1), new Point(-1, 0)};
+		final Point[] offsets = {new Point(0, 1), new Point(1, 0), new Point(0, -1), new Point(-1, 0)};
 		for (int i = 0; i < offsets.length; i++) {
 			int checkx = x + offsets[i].x;
 			int checky = y + offsets[i].y;
@@ -618,7 +621,7 @@ public class Main extends Application {
 		for (int i = 0; i < roomy.myGraph.refArray.length; i++) {
 			for (int j = 0; j < roomy.myGraph.refArray[0].length; j++) {
 				if(roomy.myGraph.refArray[i][j] != null) {
-					Point[] offsets = {new Point(0, 1), new Point(0, -1), new Point(1, 0), new Point(-1, 0),
+					final Point[] offsets = {new Point(0, 1), new Point(0, -1), new Point(1, 0), new Point(-1, 0),
 							new Point(1, 1), new Point(1, -1), new Point(-1, 1), new Point(-1, -1)
 							};
 					for (int k = 0; k < offsets.length; k++) {
@@ -645,9 +648,14 @@ public class Main extends Application {
 	public void addModeButton(String name, MouseMode mode, VBox addto) {
 		Button buttx = new Button(name);
 		buttx.setPrefSize(50, 20);
+		buttx.setStyle("-fx-color: #ffffff; ");
 		buttx.setOnAction(new EventHandler<ActionEvent>() {
 			public void handle(ActionEvent e) {
 				myMouse = mode;
+				for(Node n: addto.getChildren()) {
+					n.setStyle("-fx-color: #ffffff; ");
+				}
+				buttx.setStyle("-fx-color: #00ccff; ");
 				refresh = true;
 			}
 		});
@@ -674,13 +682,13 @@ public class Main extends Application {
 
 	public void pathBarrage(int size, GraphicsContext gc) {
 		for(int i = 0; i < size; i++) {
-			int fx = rand.nextInt(tiles.length);
-			int fy = rand.nextInt(tiles[0].length);
-			Point from = new Point(fx, fy);
+//			int fx = rand.nextInt(tiles.length);
+//			int fy = rand.nextInt(tiles[0].length);
+//			Point from = new Point(fx, fy);
 			int tx = rand.nextInt(tiles.length);
 			int ty = rand.nextInt(tiles[0].length);
 			Point to = new Point(tx, ty);
-			drawPath(to, from, gc);
+			drawPath(from, to, gc);
 		}
 	}
 

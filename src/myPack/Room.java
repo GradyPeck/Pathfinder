@@ -160,11 +160,13 @@ public class Room {
 	
 	//changes the destination room of a door (this version currently unused)
 	public void rerouteDoor (Door d, Room newRoom) {
+		Room checkTarget = null;
 		ArrayList<Door> outerList = new ArrayList<Door>();
 		for (Room dest: doors.keySet()) {
 			ArrayList<Door> newList = new ArrayList<Door>();
 			for (Door dor: doors.get(dest)) {
 				if (dor.equals(d)) {
+					checkTarget = dest;
 					ArrayList<Door> current;
 					current = new ArrayList<Door>();
 					if(doors.get(newRoom) != null) current.addAll(doors.get(newRoom));
@@ -177,12 +179,14 @@ public class Room {
 		}
 		//this is here to avoid a ConcurrentModificationException
 		if(outerList.size() != 0) doors.put(newRoom, outerList);
+		if(checkTarget != null) checkNeighbor(checkTarget);
 	}
 	
 	//overload of rerouteDoor that avoids iteration - used by transferDoor
 	public void rerouteDoor (Room dest, Door d, Room newRoom) {
 		//remove target door from current listing
 		removeDoor(dest, d);
+		checkNeighbor(dest);
 		//add target door to new listing
 		addDoor(newRoom, d);
 	}
