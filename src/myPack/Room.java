@@ -14,7 +14,6 @@ public class Room {
 	public PathingGraph myGraph = new PathingGraph();
 	static int lastID = 99;
 	public int id;
-	public Color chroma;
 	
 	//returns a door object at these global coordinates, if owned by this room
 	public Door getDoorByLocation(int x, int y) {
@@ -35,6 +34,7 @@ public class Room {
 		return myReturn;
 	}
 	
+	//change to a new PathingGraph and add all your doors to it
 	public void refreshGraph(PathingGraph graphIn) {
 		myGraph = graphIn;
 		for (Room r: doors.keySet()) {
@@ -44,6 +44,7 @@ public class Room {
 		}
 	}
 	
+	//regenerate all the door-to-door paths in this room
 	public void refreshDoorPaths() {
 		for (Room r: doors.keySet()) {
 			for (Door d: doors.get(r)) {
@@ -59,6 +60,7 @@ public class Room {
 		}
 	}
 	
+	//check if all of your neighbors are still valid - currently unused
 	public void refreshNeighbors() {
 		ArrayList<Room> toWhack = new ArrayList<Room>();
 		for(Room r: doors.keySet()) {
@@ -69,8 +71,14 @@ public class Room {
 		}
 	}
 	
+	//check if a specific neighbor is valid - used extensively by door handling methods
+	public void checkNeighbor(Room r) {
+		if(doors.get(r).size() == 0) {
+			doors.remove(r);
+		}
+	}
+	
 	//Door Handling Methods
-	//TODO rewrite these to get rid of unnecessary iterations
 	
 	//creates a new door from this room to a target room at an arbitrary location
 	//currently unused
@@ -99,6 +107,7 @@ public class Room {
 		portalpal.portal = newDoor;
 		addDoor(destRoom, newDoor);
 		destRoom.addDoor(this, portalpal);
+		//rewrite the tile
 		Main.tiles[x][y] = 2;
 		Main.changedTiles.add(new Point(x, y));
 		refreshDoorPaths();
@@ -107,35 +116,49 @@ public class Room {
 	
 	//transfers a door from one room to another
 	public void transferDoor (Door d, Room newRoom) {
+		Room checkTarget = null;
 		if(newRoom.equals(this)) return;
 		for (Room dest: doors.keySet()) {
 			ArrayList<Door> newList = new ArrayList<Door>();
 			for (Door dor: doors.get(dest)) {
 				if (dor.equals(d)) {
-					if (newRoom.equals(dest)) deleteDoor(d);
+					if (newRoom.equals(dest)) deleteDoor(dest, d);
 					else {
 						newRoom.addDoor(dest, d);
-						dest.rerouteDoor(d.portal, newRoom);
+						dest.rerouteDoor(this, d.portal, newRoom);
 					}
+					checkTarget = dest;
 				}
 				else newList.add(dor);
 			}
 			if(newList.containsAll(doors.get(dest)) == false) doors.put(dest, newList);
 		}
-		refreshNeighbors();
+		if(checkTarget != null) checkNeighbor(checkTarget);
 		myGraph.setVertex(d.x, d.y, false);
 		newRoom.refreshDoorPaths();
+	}
+	
+	//overload of transferDoor that avoids iterating - used by transferAllDoors
+	public void transferDoor (Room dest, Door d, Room newRoom) {
+		//ignore transfers to yourself
+		if(newRoom.equals(this)) return;
+		//remove doors that would become internal to one room
+		if(newRoom.equals(dest)) deleteDoor(dest, d);
+		//remove target door from current room
+		removeDoor(dest, d);
+		//add target door to new room
+		newRoom.addDoor(dest, d);
 	}
 	
 	public void transferAllDoors (Room newRoom) {
 		for (Room r: doors.keySet()) {
 			for (Door d: doors.get(r)) {
-				transferDoor(d, newRoom);
+				transferDoor(r, d, newRoom);
 			}
 		}
 	}
 	
-	//changes the destination room of a door - used by transferDoor
+	//changes the destination room of a door (this version currently unused)
 	public void rerouteDoor (Door d, Room newRoom) {
 		ArrayList<Door> outerList = new ArrayList<Door>();
 		for (Room dest: doors.keySet()) {
@@ -156,31 +179,55 @@ public class Room {
 		if(outerList.size() != 0) doors.put(newRoom, outerList);
 	}
 	
-	//removes a door from this room without doing any other cleanup - used by deleteDoor
+	//overload of rerouteDoor that avoids iteration - used by transferDoor
+	public void rerouteDoor (Room dest, Door d, Room newRoom) {
+		//remove target door from current listing
+		removeDoor(dest, d);
+		//add target door to new listing
+		addDoor(newRoom, d);
+	}
+	
+	//removes a door from this room without doing any other cleanup (this version currently unused)
 	public void removeDoor (Door d) {
+		Room checkTarget = null;
 		for (Room dest: doors.keySet()) {
 			ArrayList<Door> newList = new ArrayList<Door>();
 			for (Door dor: doors.get(dest)) {
 				if (!dor.equals(d)) newList.add(dor);
+				else checkTarget = dest;
 			}
-			if(newList.containsAll(doors.get(dest)) == false) doors.put(dest, newList);
+			if(newList.containsAll(doors.get(dest)) == false) {
+				doors.put(dest, newList);
+				break;
+			}
 		}
 		myGraph.setVertex(d.x, d.y, false);
-		refreshNeighbors();
+		if(checkTarget != null) checkNeighbor(checkTarget);
+	}
+	
+	//overload of removeDoor that avoids iteration - used by deleteDoor and tD and rrD overloads
+	public void removeDoor (Room dest, Door d) {
+		ArrayList<Door> destList = new ArrayList<Door>();
+		destList.addAll(doors.get(dest));
+		destList.remove(d);
+		doors.put(dest, destList);
+		myGraph.setVertex(d.x, d.y, false);
+		checkNeighbor(dest);
 	}
 	
 	//initiates the full process of deleting and cleaning up a door
-	public void deleteDoor (Door d/*, boolean open*/) {
+	public void deleteDoor (Door d) {
+		Room checkTarget = null;
 		//rewrite the door tile
-		/*if(open) Main.tiles[d.x][d.y] = id;
-		else*/ Main.tiles[d.x][d.y] = 1;
+		Main.tiles[d.x][d.y] = 1;
 		Main.changedTiles.add(new Point(d.x, d.y));
 		//remove the portal-partner
 		for (Room dest: doors.keySet()) {
 			ArrayList<Door> newList = new ArrayList<Door>();
 			for (Door dor: doors.get(dest)) {
 				if (dor.equals(d)) {
-					dest.removeDoor(d.portal);
+					dest.removeDoor(this, d.portal);
+					checkTarget = dest;
 				}
 				//the door itself is removed by simply failing to add it to the new list, as in other methods
 				else newList.add(dor);
@@ -188,7 +235,16 @@ public class Room {
 			if(newList.containsAll(doors.get(dest)) == false) doors.put(dest, newList);
 		}
 		myGraph.setVertex(d.x, d.y, false);
-		refreshNeighbors();
+		if(checkTarget != null) checkNeighbor(checkTarget);
+	}
+	
+	//override of deleteDoor that avoids iteration - used by transferDoor
+	public void deleteDoor (Room dest, Door d) {
+		//rewrite the door tile
+		Main.tiles[d.x][d.y] = 1;
+		Main.changedTiles.add(new Point(d.x, d.y));
+		removeDoor(dest, d);
+		dest.removeDoor(this, d.portal);
 	}
 	
 	//Constructor Stuff
@@ -202,7 +258,7 @@ public class Room {
 	//constructor for a one-tile room at the target coordinates
 	public Room (int x, int y) {
 		id = nextID();
-		chroma = Main.randomColor();
+		Color chroma = Main.randomColor();
 		Main.pallette.put(id, chroma);
 		Main.rooms.put(id, this);
 		myGraph.setVertex(x, y, true);
@@ -211,7 +267,7 @@ public class Room {
 	//constructor for a room with the given PathingGraph
 	public Room (PathingGraph graphIn) {
 		id = nextID();
-		chroma = Main.randomColor();
+		Color chroma = Main.randomColor();
 		Main.pallette.put(id, chroma);
 		Main.rooms.put(id, this);
 		myGraph = graphIn;
