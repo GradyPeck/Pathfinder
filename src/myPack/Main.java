@@ -16,6 +16,7 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
+import javafx.scene.shape.Line;
 import javafx.stage.Stage;
 
 public class Main extends Application {
@@ -97,17 +98,24 @@ public class Main extends Application {
                 	}
                 	gc.setFill(Color.BLACK);
                 }
+            	//tutorial messages
             	if(firstWall && myMouse == MouseMode.WALL) {
+            		gc.setFill(Color.WHITE);
+            		gc.fillRect(0, 0, fieldSize, 30);
             		gc.setFill(Color.BLACK);
             		gc.fillText("Left-click and drag to draw walls. Right-click and drag to erase walls.", 20, 20);
             		firstWall = false;
             	}
             	if(firstDoor && myMouse == MouseMode.DOOR) {
+            		gc.setFill(Color.WHITE);
+            		gc.fillRect(0, 0, fieldSize*10, 30);
             		gc.setFill(Color.BLACK);
             		gc.fillText("Click on a wall between rooms to make a door. Click on a door to remove it.", 20, 20);
             		firstDoor = false;
             	}
             	if(firstPath && myMouse == MouseMode.PATH) {
+            		gc.setFill(Color.WHITE);
+            		gc.fillRect(0, 0, fieldSize*10, 30);
             		gc.setFill(Color.BLACK);
             		gc.fillText("Click to place a starting point, then click elsewhere to place an ending point.", 
             				20, 20);
@@ -172,7 +180,6 @@ public class Main extends Application {
 	        			}
 	        		}
 	        		else if(e.isPrimaryButtonDown()) {
-	        			
 		        		if(tiles[poked.x][poked.y] != 1) {
 		        			if(sampleAdjacents(tiles, poked.x, poked.y).contains(2)) {
 		        				HashMap<Door, Room> doorsToRemove = findAdjDoors(poked.x, poked.y);
@@ -197,7 +204,7 @@ public class Main extends Application {
 		canvas.setOnMouseClicked(new EventHandler<MouseEvent>() {
         	public void handle(MouseEvent e) {
         		Point poked = new Point(Math.min((int) (e.getX()/10), 49), Math.min((int) (e.getY()/10), 49));
-        		//shift-click on a wall between rooms to place doors
+        		//click on a wall between rooms to place doors
         		if(myMouse == MouseMode.DOOR) {
         			//turn wall into door (if possible)
 	        		if(tiles[poked.x][poked.y] == 1) {
@@ -247,7 +254,7 @@ public class Main extends Application {
         		}
         		//test code that triggers pathfinding between two clicks
         		else if(myMouse == MouseMode.PATH) {
-        			if(e.isShiftDown()) pathBarrage(50, gc);
+        			if(e.isShiftDown() && from != null) pathBarrage(50, gc);
         			else {
 	        			int idfound = tiles[poked.x][poked.y];
 	        			if(idfound > 99) {
@@ -280,9 +287,9 @@ public class Main extends Application {
 			if(rooms.get(inty) != null) drawGraph(rooms.get(inty), gc);
 		}*/
 		
-		
 		border.setCenter(canvas);
 		root.getChildren().add(border);
+		root.getChildren().add(new Line(50, 0, 50, fieldSize * 10));
 		stage.setScene(scene);
 		stage.show();
 	}
