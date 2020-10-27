@@ -44,6 +44,12 @@ public class Room {
 		}
 	}
 	
+	//bundles together setVertex and refreshDoorPaths - used in Main under onMouseDragged
+	public void editGraph(int x, int y, boolean passable) {
+		myGraph.setVertex(x, y, passable);
+		refreshDoorPaths();
+	}
+	
 	//regenerate all the door-to-door paths in this room
 	public void refreshDoorPaths() {
 		for (Room r: doors.keySet()) {
@@ -73,7 +79,7 @@ public class Room {
 	
 	//check if a specific neighbor is valid - used extensively by door handling methods
 	public void checkNeighbor(Room r) {
-		if(doors.get(r).size() == 0) {
+		if(doors.get(r) != null && doors.get(r).size() == 0) {
 			doors.remove(r);
 		}
 	}

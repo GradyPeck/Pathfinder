@@ -144,7 +144,7 @@ public class Main extends Application {
 	        					else {
 	        						Room roomy = rooms.get(neighbors.get(0));
 	        	        			if(roomy != null) {
-	        	        				roomy.myGraph.setVertex(poked.x, poked.y, true);
+	        	        				roomy.editGraph(poked.x, poked.y, true);
 	        	        			}
 	        	        			tiles[poked.x][poked.y] = neighbors.get(0);
 	        					}
@@ -154,14 +154,14 @@ public class Main extends Application {
 	        					if(neighbors.indexOf(1) == 0) {
 	        						Room roomy = rooms.get(neighbors.get(1));
 	        	        			if(roomy != null) {
-	        	        				roomy.myGraph.setVertex(poked.x, poked.y, true);
+	        	        				roomy.editGraph(poked.x, poked.y, true);
 	        	        			}
 	        	        			tiles[poked.x][poked.y] = neighbors.get(1);
 	        					}
 	        					else {
 	        						Room roomy = rooms.get(neighbors.get(0));
 	        	        			if(roomy != null) {
-	        	        				roomy.myGraph.setVertex(poked.x, poked.y, true);
+	        	        				roomy.editGraph(poked.x, poked.y, true);
 	        	        			}
 	        	        			tiles[poked.x][poked.y] = neighbors.get(0);
 	        					}
@@ -189,7 +189,7 @@ public class Main extends Application {
 			        		}
 		        			Room roomy = rooms.get(tiles[poked.x][poked.y]);
 		        			if(roomy != null) {
-		        				roomy.myGraph.setVertex(poked.x, poked.y, false);
+		        				roomy.editGraph(poked.x, poked.y, false);
 		        			}
 			        		tiles[poked.x][poked.y] = 1;
 			        		changedTiles.add(poked);
